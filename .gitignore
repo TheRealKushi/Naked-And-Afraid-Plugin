@@ -1,2 +1,31 @@
+# Ignore compiled Java classes
+*.class
+
+# Ignore IDE files (IntelliJ, Eclipse)
+.idea/
+*.iml
+*.ipr
+*.iws
+*.project
+*.classpath
+
+# Ignore logs
+*.log
+
+# Ignore build outputs (Maven/Gradle)
 .gradle/
+target/
 build/
+
+# Ignore config files
+config.yml
+secrets.json
+build.gradle
+settings.gradle
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+README.md
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db
