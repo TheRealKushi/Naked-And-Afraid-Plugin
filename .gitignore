@@ -2,6 +2,7 @@
 *.class
 
 # Ignore IDE files (IntelliJ, Eclipse)
+.github
 .idea/
 *.iml
 *.ipr
