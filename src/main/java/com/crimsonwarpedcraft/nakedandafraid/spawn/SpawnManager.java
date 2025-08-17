@@ -25,7 +25,6 @@ public class SpawnManager {
     public SpawnManager(NakedAndAfraid plugin) {
         this.plugin = plugin;
 
-        // Define the spawns.yml file inside plugin data folder
         spawnsFile = new File(plugin.getDataFolder(), "spawns.yml");
         loadSpawnsFile();
     }
@@ -52,19 +51,18 @@ public class SpawnManager {
     }
 
     public void saveSpawns() {
-        // Clear existing spawn section to avoid stale data
         spawnsConfig.set("spawns", null);
 
         for (Map.Entry<String, SpawnData> entry : spawns.entrySet()) {
             String key = entry.getKey();
             SpawnData data = entry.getValue();
-            Location loc = data.getLocation();
+            Location loc = data.location();
 
             spawnsConfig.set("spawns." + key + ".x", loc.getX());
             spawnsConfig.set("spawns." + key + ".y", loc.getY());
             spawnsConfig.set("spawns." + key + ".z", loc.getZ());
             spawnsConfig.set("spawns." + key + ".world", loc.getWorld().getName());
-            spawnsConfig.set("spawns." + key + ".targetPlayer", data.getTargetPlayerName());
+            spawnsConfig.set("spawns." + key + ".targetPlayer", data.targetPlayerName());
         }
 
         try {
@@ -78,7 +76,6 @@ public class SpawnManager {
     private void loadSpawnsFile() {
         if (!spawnsFile.exists()) {
             plugin.saveResource("spawns.yml", false);
-            // Or create empty file if you don't ship one:
             if (!spawnsFile.exists()) {
                 try {
                     spawnsFile.createNewFile();
@@ -132,17 +129,14 @@ public class SpawnManager {
         Location loc = null;
         String targetPlayerName = null;
 
-        // Remaining args start at index 3
         int remaining = args.length - 3;
 
-        // Helper to test if a string is a double
         boolean hasCoords = false;
         if (remaining >= 3) {
             hasCoords = isDouble(args[3]) && isDouble(args[4]) && isDouble(args[5]);
         }
 
         if (hasCoords) {
-            // parse coords from args[3..5]
             try {
                 double x = Double.parseDouble(args[3]);
                 double y = Double.parseDouble(args[4]);
@@ -152,12 +146,10 @@ public class SpawnManager {
                 if (sender instanceof Player p) {
                     world = p.getWorld();
                 } else {
-                    // default world if console used
                     world = Bukkit.getWorlds().getFirst();
                 }
                 loc = new Location(world, x, y, z);
 
-                // optional target after coords
                 if (args.length >= 7) {
                     targetPlayerName = args[6];
                 }
@@ -167,7 +159,6 @@ public class SpawnManager {
                 return true;
             }
         } else {
-            // No coords: maybe the user provided only targetPlayer (args[3])
             if (args.length >= 4) {
                 targetPlayerName = args[3];
             }
@@ -175,22 +166,19 @@ public class SpawnManager {
             if (sender instanceof Player p) {
                 loc = p.getLocation();
             } else {
-                // console must provide coords if no player location available
                 sender.sendMessage("§cCoordinates or player must be specified when run from console.");
                 return true;
             }
         }
 
-        // If still null, default to command sender (if player) or spawn name
         if (targetPlayerName == null) {
             if (sender instanceof Player p) {
                 targetPlayerName = p.getName();
             } else {
-                targetPlayerName = spawnName; // fallback
+                targetPlayerName = spawnName;
             }
         }
 
-        // Optional: warn if the named player has never joined
         if (!Bukkit.getOfflinePlayer(targetPlayerName).hasPlayedBefore() && Bukkit.getPlayerExact(targetPlayerName) == null) {
             sender.sendMessage("§eWarning: Player '" + targetPlayerName + "' has never joined the server before (still saved).");
         }
@@ -204,7 +192,6 @@ public class SpawnManager {
         return true;
     }
 
-    /* add this helper somewhere in the class (private static or private) */
     private static boolean isDouble(String s) {
         if (s == null) return false;
         try {
@@ -273,7 +260,7 @@ public class SpawnManager {
         }
         sender.sendMessage("§6==== Spawns ====");
         for (Map.Entry<String, SpawnData> entry : spawns.entrySet()) {
-            Location loc = entry.getValue().getLocation();
+            Location loc = entry.getValue().location();
             sender.sendMessage("§e" + entry.getKey() + " §7- " + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() + " §f(world: " + loc.getWorld().getName() + ")");
         }
         return true;
@@ -309,23 +296,20 @@ public class SpawnManager {
             }
         }
 
-        // Find all spawns for this target player
         List<SpawnData> matchingSpawns = new ArrayList<>();
         for (Map.Entry<String, SpawnData> entry : spawns.entrySet()) {
-            if (entry.getValue().getTargetPlayerName().equalsIgnoreCase(targetPlayer.getName())) {
+            if (entry.getValue().targetPlayerName().equalsIgnoreCase(targetPlayer.getName())) {
                 matchingSpawns.add(entry.getValue());
             }
         }
 
-        // If user specified spawnName, use that spawn
         if (spawns.containsKey(spawnName)) {
             SpawnData spawn = spawns.get(spawnName);
-            plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, spawn.getLocation());
+            plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, spawn.location());
             sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to spawn '" + spawnName + "'...");
             return true;
         }
 
-        // If no spawn of that name, but there are multiple spawns for the player, apply priority
         if (!matchingSpawns.isEmpty()) {
             String priority = plugin.getMultipleSpawnPriority();
             SpawnData chosen = null;
@@ -340,9 +324,9 @@ public class SpawnManager {
                     chosen = matchingSpawns.get(new Random().nextInt(matchingSpawns.size()));
                     break;
                 default:
-                    chosen = matchingSpawns.getFirst(); // fallback
+                    chosen = matchingSpawns.getFirst();
             }
-            plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, chosen.getLocation());
+            plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, chosen.location());
             sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to their spawn (" + priority + ")...");
             return true;
         }
@@ -358,12 +342,12 @@ public class SpawnManager {
         }
 
         for (SpawnData spawn : spawns.values()) {
-            Player target = Bukkit.getPlayerExact(spawn.getTargetPlayerName());
+            Player target = Bukkit.getPlayerExact(spawn.targetPlayerName());
             if (target == null) {
-                sender.sendMessage("§c" + spawn.getTargetPlayerName() + " is not online!");
+                sender.sendMessage("§c" + spawn.targetPlayerName() + " is not online!");
                 continue;
             }
-            plugin.getTeleportHelper().startCountdownTeleport(target, spawn.getLocation());
+            plugin.getTeleportHelper().startCountdownTeleport(target, spawn.location());
             sender.sendMessage("§aTeleporting " + target.getName() + " to their spawn...");
         }
         return true;

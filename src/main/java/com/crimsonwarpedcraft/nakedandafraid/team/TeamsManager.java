@@ -22,7 +22,6 @@ public class TeamsManager {
     private int maxTeams;
     private Material teamBlockMaterial;
 
-    // TeamName -> Team object
     private final Map<String, Team> teams = new HashMap<>();
 
     public TeamsManager(JavaPlugin plugin) {
@@ -197,7 +196,6 @@ public class TeamsManager {
         return team.getLodestone();
     }
 
-    // Find team by lodestone location (exact match)
     public Optional<Team> getTeamByLodestone(Location location) {
         for (Team t : teams.values()) {
             Location l = t.getLodestone();

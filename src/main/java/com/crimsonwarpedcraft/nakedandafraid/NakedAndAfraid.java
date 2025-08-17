@@ -6,8 +6,6 @@ import com.crimsonwarpedcraft.nakedandafraid.team.TeamCommands;
 import com.crimsonwarpedcraft.nakedandafraid.team.TeamsManager;
 import com.crimsonwarpedcraft.nakedandafraid.util.TeleportHelper;
 import io.papermc.lib.PaperLib;
-import net.kyori.adventure.resource.ResourcePackInfo;
-import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -15,30 +13,19 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 
-/**
- * Main plugin class for Naked And Afraid.
- */
 public class NakedAndAfraid extends JavaPlugin {
 
   private ChatRestrictionListener chatRestrictionListener;
   private ArmorDamageListener armorDamageListener;
   private JoinQuitMessageSuppressor joinQuitMessageSuppressor;
   private TabListClearer tabListClearer;
-
-  private final String PACK_URL = "https://github.com/TheRealKushi/Deathcraft-Assets/releases/download/release-1.0.2/NakedAndAfraid-1.0.2.zip";
-  private static final String PACK_HASH = "3e930d7cbfbd7dcb113dcc79820abe13e1601835";
 
   private SpawnManager spawnManager;
   private TeleportHelper teleportHelper;
@@ -90,11 +77,7 @@ public class NakedAndAfraid extends JavaPlugin {
     console.sendMessage(Component.empty());
   }
 
-  /**
-   * Reload listeners based on config settings.
-   */
   public void reloadListeners() {
-    // Unregister old listeners if any
     if (chatRestrictionListener != null) {
       getServer().getPluginManager().callEvent(
               new org.bukkit.event.server.PluginDisableEvent(this)
@@ -111,7 +94,6 @@ public class NakedAndAfraid extends JavaPlugin {
       );
     }
 
-    // Register listeners based on config
     if (getConfig().getBoolean("disable-chat", true)) {
       chatRestrictionListener = new ChatRestrictionListener();
       getServer().getPluginManager().registerEvents(chatRestrictionListener, this);
@@ -121,7 +103,7 @@ public class NakedAndAfraid extends JavaPlugin {
     }
 
     if (getConfig().getBoolean("disable-tab", true)) {
-      TabListClearer.register(this); // register the packet listener
+      TabListClearer.register(this);
       getLogger().info("Naked And Afraid - Tab Hider Enabled.");
     }
 
@@ -148,30 +130,6 @@ public class NakedAndAfraid extends JavaPlugin {
 
   public String getMultipleSpawnPriority() {
     return multipleSpawnPriority;
-  }
-
-  @EventHandler
-  public void onPlayerJoin(PlayerJoinEvent event) {
-    Player player = event.getPlayer();
-
-    try {
-      ResourcePackInfo packInfo = ResourcePackInfo.resourcePackInfo()
-              .uri(new URI(PACK_URL))   // Set URL here
-              .hash(PACK_HASH)          // Set hash here
-              .build();
-
-      ResourcePackRequest request = ResourcePackRequest.resourcePackRequest()
-              .packs(packInfo)
-              .replace(true)
-              .required(true)
-              .prompt(Component.text("Please accept the NakedAndAfraid resource pack!"))
-              .build();
-
-      player.sendResourcePacks(request);
-    } catch (URISyntaxException e) {
-      getLogger().severe("Invalid resource pack URL: " + PACK_URL);
-      getLogger().log(Level.SEVERE, "Exception while sending resource pack", e);
-    }
   }
 
   @Override
@@ -235,7 +193,6 @@ public class NakedAndAfraid extends JavaPlugin {
                                     String @NotNull [] args) {
     if (command.getName().equalsIgnoreCase("nf") || command.getName().equalsIgnoreCase("nakedafraid")) {
       if (args.length == 1) {
-        // Root-level completions: help, reloadconfig, spawn, team, user
         List<String> completions = new ArrayList<>();
         completions.add("help");
         if (sender.hasPermission("nakedandafraid.reload")) {
@@ -247,7 +204,6 @@ public class NakedAndAfraid extends JavaPlugin {
         return completions;
       }
 
-      // Handle tab completion for /nf spawn ...
       if (args[0].equalsIgnoreCase("spawn")) {
         List<String> spawnSubs = List.of("create", "rename", "remove", "list", "tp", "tpall");
 
@@ -295,7 +251,6 @@ public class NakedAndAfraid extends JavaPlugin {
         return Collections.emptyList();
       }
 
-      // Tab completion for /nf team ...
       if (args[0].equalsIgnoreCase("team")) {
         List<String> teamSubs = List.of("create", "remove", "list", "block", "setblock");
 
@@ -305,17 +260,14 @@ public class NakedAndAfraid extends JavaPlugin {
           for (String sub : teamSubs) {
             if (sub.startsWith(partial)) result.add(sub);
           }
-          // Also suggest team names for existing teams for 2nd arg if user is starting with team name (for block/setblock)
           for (var team : teamsManager.getTeams()) {
             if (team.getName().toLowerCase().startsWith(partial)) result.add(team.getName());
           }
           return result;
         }
 
-        // /nf team <team-name> <subcommand>
         if (args.length == 3) {
           String possibleTeam = args[1].toLowerCase();
-          // If user typed a team name, suggest block/setblock for 3rd arg
           if (teamsManager.teamExists(possibleTeam)) {
             List<String> result = new ArrayList<>();
             String partial = args[2].toLowerCase();
@@ -324,7 +276,6 @@ public class NakedAndAfraid extends JavaPlugin {
             }
             return result;
           }
-          // If user is doing remove or setblock, suggest team names
           if (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("setblock")) {
             String partial = args[2].toLowerCase();
             List<String> matchingTeams = new ArrayList<>();
@@ -333,7 +284,6 @@ public class NakedAndAfraid extends JavaPlugin {
             }
             return matchingTeams;
           }
-          // If block, suggest team names
           if (args[1].equalsIgnoreCase("block")) {
             String partial = args[2].toLowerCase();
             List<String> matchingTeams = new ArrayList<>();
@@ -344,7 +294,6 @@ public class NakedAndAfraid extends JavaPlugin {
           }
         }
 
-        // /nf team <team-name> block selector <player>
         if (args.length == 4 && teamsManager.teamExists(args[1].toLowerCase()) && args[2].equalsIgnoreCase("block")) {
           String partial = args[3].toLowerCase();
           if ("selector".startsWith(partial)) return List.of("selector");
@@ -358,14 +307,11 @@ public class NakedAndAfraid extends JavaPlugin {
           return players;
         }
 
-        // /nf team <team-name> setblock <coords>
         if (args.length >= 4 && teamsManager.teamExists(args[1].toLowerCase()) && args[2].equalsIgnoreCase("setblock")) {
-          // Tab complete nothing for coords
           return Collections.emptyList();
         }
       }
 
-      // Tab completion for /nf user <player> team <add|remove|list> [team]
       if (args[0].equalsIgnoreCase("user")) {
         if (args.length == 2) {
           String partialPlayer = args[1].toLowerCase();
@@ -407,7 +353,7 @@ public class NakedAndAfraid extends JavaPlugin {
    *
    * @param sender The command sender.
    */
-  private final int HELP_LINES_PER_PAGE = 6; // Customize as you want
+  private final int HELP_LINES_PER_PAGE = 6;
 
   private void sendHelpMessage(CommandSender sender, int page) {
     List<String> helpLines = List.of(

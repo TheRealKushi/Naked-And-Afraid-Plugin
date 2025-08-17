@@ -91,8 +91,6 @@ public class TeleportHelper implements Listener {
         }.runTaskTimer(plugin, 0L, 20L);
     }
 
-    // Freeze player by cancelling these events while frozen
-
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (frozenPlayers.contains(event.getPlayer())) {

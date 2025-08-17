@@ -21,12 +21,16 @@ public class TabListClearer {
                         Player viewer = event.getPlayer();
                         PacketContainer packet = event.getPacket();
 
-                        // Get the list of player info entries
                         List<PlayerInfoData> originalList = packet.getPlayerInfoDataLists().read(0);
 
-                        // Keep only the viewer in the list
                         List<PlayerInfoData> filteredList = originalList.stream()
-                                .filter(info -> info.getProfile().getUUID().equals(viewer.getUniqueId()))
+                                .filter(info -> {
+                                    if (info == null || info.getProfile() == null) {
+                                        System.out.println("Skipped null PlayerInfoData entry!");
+                                        return false;
+                                    }
+                                    return info.getProfile().getUUID().equals(viewer.getUniqueId());
+                                })
                                 .collect(Collectors.toList());
 
                         packet.getPlayerInfoDataLists().write(0, filteredList);

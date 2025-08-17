@@ -76,31 +76,6 @@ public class ArmorDamageListener implements Listener {
         damageTasks.put(player.getUniqueId(), task);
     }
 
-    // You can temporarily disable this handler if it's interfering
-    /*
-    @EventHandler
-    public void onCustomDamage(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-
-        plugin.getLogger().info("Damage event: cause=" + event.getCause() + ", damage=" + event.getDamage());
-
-        if (!damageTasks.containsKey(player.getUniqueId())) return;
-
-        if (event instanceof EntityDamageByEntityEvent entityEvent) {
-            if (entityEvent.getDamager() instanceof Player damager) {
-                if (damager.getUniqueId().equals(player.getUniqueId())) {
-                    event.setDamage(damageAmount * 2);
-                    return;
-                }
-            }
-        }
-
-        if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            return;
-        }
-    }
-    */
-
     private void cancelDamageTask(final Player player) {
         BukkitRunnable task = damageTasks.remove(player.getUniqueId());
         if (task != null) {

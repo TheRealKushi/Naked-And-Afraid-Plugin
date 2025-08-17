@@ -12,7 +12,6 @@ public class GlobalDeathSoundListener implements Listener {
 
     private final JavaPlugin plugin;
 
-    // Constructor to receive the main plugin instance
     public GlobalDeathSoundListener(JavaPlugin plugin) {
         this.plugin = plugin;
     }
@@ -22,7 +21,7 @@ public class GlobalDeathSoundListener implements Listener {
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.playSound(player.getLocation(), Sound.ENTITY_IRON_GOLEM_DEATH, 100.0f, 0.1f);
-            debugLog("Playing custom death sound for " + player.getName());
+            debugLog("Playing death sound for player " + player.getName());
         }
     }
 

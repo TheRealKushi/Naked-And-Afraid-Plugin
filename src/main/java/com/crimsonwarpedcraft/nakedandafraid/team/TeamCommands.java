@@ -22,7 +22,6 @@ public class TeamCommands {
 
     private static final String TEAM_BLOCK_SELECTOR_NAME = "Team Block Selector";
 
-    // Track players who already used the selector once
     private final Set<UUID> usedSelectorPlayers = new HashSet<>();
 
     public TeamCommands(TeamsManager teamsManager, JavaPlugin plugin) {
@@ -38,9 +37,7 @@ public class TeamCommands {
 
         String sub = args[1].toLowerCase();
 
-        // /nf team <team-name> block selector <player>
         if (teamsManager.teamExists(sub)) {
-            // Team name as 2nd arg, now check 3rd arg for block/setblock
             if (args.length >= 3) {
                 if (args[2].equalsIgnoreCase("block")) {
                     return handleTeamBlockSelector(sender, args);
@@ -61,14 +58,12 @@ public class TeamCommands {
             case "remove":
                 return handleTeamRemove(sender, args);
             case "block":
-                // legacy: /nf team block <team-name> selector <player>
                 if (args.length >= 4 && teamsManager.teamExists(args[2].toLowerCase()) && args[3].equalsIgnoreCase("selector")) {
                     return handleTeamBlockSelector(sender, args);
                 }
                 sender.sendMessage(Component.text("Usage: /nf team <team-name> block selector <player>").color(NamedTextColor.RED));
                 return true;
             case "setblock":
-                // legacy: /nf team setblock <team-name> <x> <y> <z>
                 if (args.length == 6 && teamsManager.teamExists(args[2].toLowerCase())) {
                     return handleTeamSetBlock(sender, args);
                 }
@@ -119,7 +114,6 @@ public class TeamCommands {
         }
         String teamName = args[2].toLowerCase();
 
-        // Pick a color automatically by cycling through NamedTextColor values
         NamedTextColor color = pickColorForTeam();
 
         if (teamsManager.teamExists(teamName)) {
@@ -179,7 +173,6 @@ public class TeamCommands {
         return true;
     }
 
-    // Updated method: now /nf team <team-name> block selector <player>
     private boolean handleTeamBlockSelector(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
             sender.sendMessage(Component.text("Only players can use this command.").color(NamedTextColor.RED));
@@ -214,7 +207,6 @@ public class TeamCommands {
         ItemMeta meta = axe.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text(TEAM_BLOCK_SELECTOR_NAME).color(NamedTextColor.GOLD));
-            // Store team name inside the item for later retrieval
             meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "teamSelector"), PersistentDataType.STRING, teamName);
             axe.setItemMeta(meta);
         }
@@ -318,7 +310,6 @@ public class TeamCommands {
         return true;
     }
 
-    // Called when player right-clicks block with team block selector axe
     public void onTeamBlockSelectorUse(Player player, Block block) {
         if (block.getType() != teamsManager.getTeamBlockMaterial()) {
             player.sendMessage(Component.text("This block is not the configured team block (" + teamsManager.getTeamBlockMaterial() + ").").color(NamedTextColor.RED));
@@ -341,15 +332,13 @@ public class TeamCommands {
             return;
         }
 
-        // Set or re-position lodestone for the specified team
         teamsManager.setLodestone(teamName, block.getLocation());
         player.sendMessage(Component.text("Team lodestone for '" + teamName + "' set at " +
                 block.getX() + ", " + block.getY() + ", " + block.getZ()).color(NamedTextColor.GREEN));
 
-        // Update player nametag color for the team
         updatePlayerNametagColor(player, teamName);
 
-        // Optionally remove the selector after use, or keep it for multiple repositions
+        // Optionally remove the selector after use by uncommenting the line below
         // player.getInventory().remove(item);
     }
 
@@ -366,7 +355,6 @@ public class TeamCommands {
             scoreboardTeam.setDisplayName(teamName);
         }
 
-        // Add all online team members to this scoreboard team
         for (UUID memberUUID : team.getMembers()) {
             Player member = Bukkit.getPlayer(memberUUID);
             if (member != null && member.isOnline()) {
