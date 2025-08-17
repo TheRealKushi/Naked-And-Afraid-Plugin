@@ -26,6 +26,11 @@ public class TeleportHelper implements Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    /**
+     * Starts a countdown teleport.
+     * If teleport-on-countdown-end is true, teleport happens after countdown.
+     * Otherwise, teleport happens before countdown.
+     */
     public void startCountdownTeleport(Player player, Location target) {
         if (!plugin.getConfig().getBoolean("enable-countdown", true)) {
             player.teleport(target);
@@ -45,9 +50,7 @@ public class TeleportHelper implements Listener {
             color = BarColor.RED;
         }
 
-        // Teleport immediately
-        player.teleport(target);
-        player.sendMessage("§aTeleported!");
+        boolean teleportOnCountdownEnd = plugin.isTeleportOnCountdownEnd();
 
         BossBar bossBar = Bukkit.createBossBar("Deathcraft starts in " + duration, color, BarStyle.SOLID);
         bossBar.addPlayer(player);
@@ -60,10 +63,21 @@ public class TeleportHelper implements Listener {
 
             @Override
             public void run() {
+                if (timeLeft == duration) {
+                    if (!teleportOnCountdownEnd) {
+                        player.teleport(target);
+                        player.sendMessage("§aTeleported!");
+                    }
+                }
+
                 if (timeLeft <= 0) {
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
                     bossBar.removePlayer(player);
                     frozenPlayers.remove(player);
+                    if (teleportOnCountdownEnd) {
+                        player.teleport(target);
+                        player.sendMessage("§aTeleported!");
+                    }
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
                     this.cancel();
                     return;
                 }

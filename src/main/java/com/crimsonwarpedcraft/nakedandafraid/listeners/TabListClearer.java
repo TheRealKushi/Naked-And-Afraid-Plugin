@@ -1,39 +1,37 @@
 package com.crimsonwarpedcraft.nakedandafraid.listeners;
 
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.events.PacketEvent;
+import com.comphenix.protocol.wrappers.PlayerInfoData;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.EventHandler;
-import org.bukkit.scheduler.BukkitRunnable;
 
-public class TabListClearer implements Listener {
+import java.util.List;
+import java.util.stream.Collectors;
 
-    private final JavaPlugin plugin;
+public class TabListClearer {
+    public static void register(JavaPlugin plugin) {
+        ProtocolLibrary.getProtocolManager().addPacketListener(
+                new PacketAdapter(plugin, PacketType.Play.Server.PLAYER_INFO) {
+                    @Override
+                    public void onPacketSending(PacketEvent event) {
+                        Player viewer = event.getPlayer();
+                        PacketContainer packet = event.getPacket();
 
-    public TabListClearer(JavaPlugin plugin) {
-        this.plugin = plugin;
-    }
+                        // Get the list of player info entries
+                        List<PlayerInfoData> originalList = packet.getPlayerInfoDataLists().read(0);
 
-    public void startClearing() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    clearTabList(player);
+                        // Keep only the viewer in the list
+                        List<PlayerInfoData> filteredList = originalList.stream()
+                                .filter(info -> info.getProfile().getUUID().equals(viewer.getUniqueId()))
+                                .collect(Collectors.toList());
+
+                        packet.getPlayerInfoDataLists().write(0, filteredList);
+                    }
                 }
-            }
-        }.runTaskLater(plugin, 20L);
-    }
-
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        clearTabList(event.getPlayer());
-    }
-
-    public void clearTabList(Player player) {
-        player.sendPlayerListHeaderAndFooter(Component.empty(), Component.empty());
+        );
     }
 }

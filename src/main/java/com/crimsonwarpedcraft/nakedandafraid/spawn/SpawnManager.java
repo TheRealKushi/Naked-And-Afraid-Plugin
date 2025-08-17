@@ -9,26 +9,39 @@ import org.bukkit.entity.Player;
 
 import java.util.*;
 
-public class SpawnManager {
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
+
+public class SpawnManager {
     private final NakedAndAfraid plugin;
+    private final File spawnsFile;
+    private FileConfiguration spawnsConfig;
+
     private final Map<String, SpawnData> spawns = new HashMap<>();
 
     public SpawnManager(NakedAndAfraid plugin) {
         this.plugin = plugin;
+
+        // Define the spawns.yml file inside plugin data folder
+        spawnsFile = new File(plugin.getDataFolder(), "spawns.yml");
+        loadSpawnsFile();
     }
 
     public void loadSpawns() {
+        loadSpawnsFile();
         spawns.clear();
-        if (plugin.getConfig().isConfigurationSection("spawns")) {
-            for (String key : Objects.requireNonNull(plugin.getConfig().getConfigurationSection("spawns")).getKeys(false)) {
-                double x = plugin.getConfig().getDouble("spawns." + key + ".x");
-                double y = plugin.getConfig().getDouble("spawns." + key + ".y");
-                double z = plugin.getConfig().getDouble("spawns." + key + ".z");
-                String worldName = plugin.getConfig().getString("spawns." + key + ".world");
-                String target = plugin.getConfig().getString("spawns." + key + ".targetPlayer", key);
 
-                assert worldName != null;
+        if (spawnsConfig.isConfigurationSection("spawns")) {
+            for (String key : Objects.requireNonNull(spawnsConfig.getConfigurationSection("spawns")).getKeys(false)) {
+                double x = spawnsConfig.getDouble("spawns." + key + ".x");
+                double y = spawnsConfig.getDouble("spawns." + key + ".y");
+                double z = spawnsConfig.getDouble("spawns." + key + ".z");
+                String worldName = spawnsConfig.getString("spawns." + key + ".world");
+                String target = spawnsConfig.getString("spawns." + key + ".targetPlayer", key);
+
                 World world = Bukkit.getWorld(worldName);
                 if (world != null) {
                     Location loc = new Location(world, x, y, z);
@@ -39,16 +52,43 @@ public class SpawnManager {
     }
 
     public void saveSpawns() {
-        for (String key : spawns.keySet()) {
-            SpawnData data = spawns.get(key);
+        // Clear existing spawn section to avoid stale data
+        spawnsConfig.set("spawns", null);
+
+        for (Map.Entry<String, SpawnData> entry : spawns.entrySet()) {
+            String key = entry.getKey();
+            SpawnData data = entry.getValue();
             Location loc = data.getLocation();
-            plugin.getConfig().set("spawns." + key + ".x", loc.getX());
-            plugin.getConfig().set("spawns." + key + ".y", loc.getY());
-            plugin.getConfig().set("spawns." + key + ".z", loc.getZ());
-            plugin.getConfig().set("spawns." + key + ".world", loc.getWorld().getName());
-            plugin.getConfig().set("spawns." + key + ".targetPlayer", data.getTargetPlayerName());
+
+            spawnsConfig.set("spawns." + key + ".x", loc.getX());
+            spawnsConfig.set("spawns." + key + ".y", loc.getY());
+            spawnsConfig.set("spawns." + key + ".z", loc.getZ());
+            spawnsConfig.set("spawns." + key + ".world", loc.getWorld().getName());
+            spawnsConfig.set("spawns." + key + ".targetPlayer", data.getTargetPlayerName());
         }
-        plugin.saveConfig();
+
+        try {
+            spawnsConfig.save(spawnsFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save spawns.yml");
+            e.printStackTrace();
+        }
+    }
+
+    private void loadSpawnsFile() {
+        if (!spawnsFile.exists()) {
+            plugin.saveResource("spawns.yml", false);
+            // Or create empty file if you don't ship one:
+            if (!spawnsFile.exists()) {
+                try {
+                    spawnsFile.createNewFile();
+                } catch (IOException e) {
+                    plugin.getLogger().severe("Could not create spawns.yml");
+                    e.printStackTrace();
+                }
+            }
+        }
+        spawnsConfig = YamlConfiguration.loadConfiguration(spawnsFile);
     }
 
     public boolean handleCommand(CommandSender sender, String[] args) {
@@ -214,8 +254,13 @@ public class SpawnManager {
         }
 
         spawns.remove(name);
-        plugin.getConfig().set("spawns." + name, null); // remove from config
-        plugin.saveConfig();
+        spawnsConfig.set("spawns." + name, null);
+        try {
+            spawnsConfig.save(spawnsFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save spawns.yml");
+            e.printStackTrace();
+        }
 
         sender.sendMessage("§aSpawn '" + name + "' removed.");
         return true;
@@ -234,21 +279,20 @@ public class SpawnManager {
         return true;
     }
 
+    /**
+     * Handles /nf spawn tp <name> [player]
+     * Now supports multiple-spawn-priority for target player.
+     */
     private boolean handleTp(CommandSender sender, String[] args) {
+        Player targetPlayer = null;
+        String spawnName = null;
+
         if (args.length < 3) {
             sender.sendMessage("§cUsage: /nf spawn tp <name> [player]");
             return true;
         }
 
-        String name = args[2].toLowerCase();
-        if (!spawns.containsKey(name)) {
-            sender.sendMessage("§cSpawn '" + name + "' does not exist.");
-            return true;
-        }
-
-        SpawnData spawn = spawns.get(name);
-
-        Player targetPlayer = null;
+        spawnName = args[2].toLowerCase();
 
         if (args.length >= 4) {
             targetPlayer = Bukkit.getPlayerExact(args[3]);
@@ -265,12 +309,45 @@ public class SpawnManager {
             }
         }
 
-        // Use targetPlayer name from spawn if you want to override here, but command param takes priority
+        // Find all spawns for this target player
+        List<SpawnData> matchingSpawns = new ArrayList<>();
+        for (Map.Entry<String, SpawnData> entry : spawns.entrySet()) {
+            if (entry.getValue().getTargetPlayerName().equalsIgnoreCase(targetPlayer.getName())) {
+                matchingSpawns.add(entry.getValue());
+            }
+        }
 
-        // Use teleport with countdown and freeze
-        plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, spawn.getLocation());
+        // If user specified spawnName, use that spawn
+        if (spawns.containsKey(spawnName)) {
+            SpawnData spawn = spawns.get(spawnName);
+            plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, spawn.getLocation());
+            sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to spawn '" + spawnName + "'...");
+            return true;
+        }
 
-        sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to spawn '" + name + "'...");
+        // If no spawn of that name, but there are multiple spawns for the player, apply priority
+        if (!matchingSpawns.isEmpty()) {
+            String priority = plugin.getMultipleSpawnPriority();
+            SpawnData chosen = null;
+            switch (priority) {
+                case "FIRST":
+                    chosen = matchingSpawns.getFirst();
+                    break;
+                case "LAST":
+                    chosen = matchingSpawns.get(matchingSpawns.size() - 1);
+                    break;
+                case "RANDOM":
+                    chosen = matchingSpawns.get(new Random().nextInt(matchingSpawns.size()));
+                    break;
+                default:
+                    chosen = matchingSpawns.getFirst(); // fallback
+            }
+            plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, chosen.getLocation());
+            sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to their spawn (" + priority + ")...");
+            return true;
+        }
+
+        sender.sendMessage("§cNo spawn found for player " + targetPlayer.getName() + ".");
         return true;
     }
 
