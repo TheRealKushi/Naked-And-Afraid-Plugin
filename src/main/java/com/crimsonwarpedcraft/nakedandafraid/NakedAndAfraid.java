@@ -12,36 +12,66 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+/**
+ * Main class for the NakedAndAfraid plugin.
+ * <p>
+ * This plugin handles features such as chat restriction, tab list hiding, armor damage,
+ * spawn management, and team management. The plugin will automatically disable the tablist hiding
+ * if ProtocolLib is missing.
+ * </p>
+ * <p>
+ * Configuration options include enabling/disabling chat restriction, tab hiding, armor damage,
+ * join/quit message suppression, teleport behavior, and spawn priority handling.
+ * </p>
+ */
 public class NakedAndAfraid extends JavaPlugin {
 
+  /** Listener for restricting global player chat, only allowing Server OPs to send messages. */
   private ChatRestrictionListener chatRestrictionListener;
+
+  /** Listener for armor damage handling, which deals damage to a player when they wear any armor piece. */
   private ArmorDamageListener armorDamageListener;
+
+  /** Listener for suppressing chat player join/quit messages. */
   private JoinQuitMessageSuppressor joinQuitMessageSuppressor;
+
+  /** Utility class for hiding players from tab list using ProtocolLib. */
   private TabListClearer tabListClearer;
 
+  /** Manages player spawns saving, loading and commands. */
   private SpawnManager spawnManager;
+
+  /** Utility for handling teleportation logic, including the countdown and freeze. */
   private TeleportHelper teleportHelper;
+
+  /** Whether players should teleport when countdown ends or when command is ran. */
   private boolean teleportOnCountdownEnd;
+
+  /** Priority when multiple spawns set for the same player exist. */
   private String multipleSpawnPriority;
+
+  /** Manages team information. */
   private TeamsManager teamsManager;
+
+  /** Handles team-related commands. */
   private TeamCommands teamCommands;
 
   @Override
   public void onEnable() {
     PaperLib.suggestPaper(this);
+
+    // Load default config and initialize listeners
     saveDefaultConfig();
     reloadListeners();
 
     teleportOnCountdownEnd = getConfig().getBoolean("teleport-on-countdown-end", false);
     multipleSpawnPriority = getConfig().getString("multiple-spawn-priority", "FIRST").toUpperCase();
+
     teamsManager = new TeamsManager(this);
     teamCommands = new TeamCommands(teamsManager, this);
 
@@ -53,6 +83,7 @@ public class NakedAndAfraid extends JavaPlugin {
 
     teleportHelper = new TeleportHelper(this);
 
+    // Initialize tab hider if ProtocolLib is present
     if (getConfig().getBoolean("disable-tab", true)) {
       if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
         try {
@@ -66,42 +97,25 @@ public class NakedAndAfraid extends JavaPlugin {
       }
     }
 
-    ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
-
-    console.sendMessage(" ");
-    console.sendMessage(Component.text("__   ____  _______ ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("| \\ | | | | ____||").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("|  \\| | | | ||_   ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("| |\\| | | | __||  ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("|_| \\_|_| |_||    ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.empty());
-    console.sendMessage(Component.text("NakedAndAfraid Plugin ").color(NamedTextColor.GOLD)
-            .append(Component.text("v" + this.getDescription().getVersion()).color(NamedTextColor.DARK_RED)));
-    console.sendMessage(Component.text("Running on ").color(NamedTextColor.YELLOW)
-            .append(Component.text(Bukkit.getServer().getName()).color(NamedTextColor.AQUA))
-            .append(Component.text(" " + Bukkit.getServer().getVersion()).color(NamedTextColor.WHITE)));
-    console.sendMessage(Component.empty());
-    console.sendMessage(Component.text("Plugin enabled successfully!").color(NamedTextColor.GREEN));
-    console.sendMessage(Component.empty());
+    logStartupInfo();
   }
 
+  /**
+   * Reloads all listeners according to the plugin configuration.
+   * Handles enabling/disabling chat, tab, armor, and join/quit message features.
+   */
   public void reloadListeners() {
     if (chatRestrictionListener != null) {
-      getServer().getPluginManager().callEvent(
-              new org.bukkit.event.server.PluginDisableEvent(this)
-      );
+      getServer().getPluginManager().callEvent(new org.bukkit.event.server.PluginDisableEvent(this));
     }
     if (armorDamageListener != null) {
-      getServer().getPluginManager().callEvent(
-              new org.bukkit.event.server.PluginDisableEvent(this)
-      );
+      getServer().getPluginManager().callEvent(new org.bukkit.event.server.PluginDisableEvent(this));
     }
     if (joinQuitMessageSuppressor != null) {
-      getServer().getPluginManager().callEvent(
-              new org.bukkit.event.server.PluginDisableEvent(this)
-      );
+      getServer().getPluginManager().callEvent(new org.bukkit.event.server.PluginDisableEvent(this));
     }
 
+    // Chat restriction
     if (getConfig().getBoolean("disable-chat", true)) {
       chatRestrictionListener = new ChatRestrictionListener();
       getServer().getPluginManager().registerEvents(chatRestrictionListener, this);
@@ -110,6 +124,7 @@ public class NakedAndAfraid extends JavaPlugin {
       chatRestrictionListener = null;
     }
 
+    // Tab list hiding
     if (getConfig().getBoolean("disable-tab", true)) {
       if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
         try {
@@ -123,6 +138,7 @@ public class NakedAndAfraid extends JavaPlugin {
       }
     }
 
+    // Armor damage
     if (getConfig().getBoolean("armor-damage.enabled", true)) {
       armorDamageListener = new ArmorDamageListener(this);
       getServer().getPluginManager().registerEvents(armorDamageListener, this);
@@ -131,6 +147,7 @@ public class NakedAndAfraid extends JavaPlugin {
       armorDamageListener = null;
     }
 
+    // Join/quit message suppression
     if (getConfig().getBoolean("disable-join-quit-messages", true)) {
       joinQuitMessageSuppressor = new JoinQuitMessageSuppressor();
       getServer().getPluginManager().registerEvents(joinQuitMessageSuppressor, this);
@@ -140,10 +157,21 @@ public class NakedAndAfraid extends JavaPlugin {
     }
   }
 
+  /**
+   * Checks if teleport should occur when countdown ends.
+   *
+   * @return true if teleport on countdown end is enabled, false otherwise.
+   */
   public boolean isTeleportOnCountdownEnd() {
     return teleportOnCountdownEnd;
   }
 
+  /**
+   * Retrieves the configured multiple spawn priority.
+   *
+   * @return The spawn priority setting, e.g., "FIRST".
+   */
+  @NotNull
   public String getMultipleSpawnPriority() {
     return multipleSpawnPriority;
   }
@@ -151,7 +179,7 @@ public class NakedAndAfraid extends JavaPlugin {
   @Override
   public boolean onCommand(final @NotNull CommandSender sender,
                            final @NotNull Command command,
-                           final String label,
+                           final @NotNull String label,
                            final String @NotNull [] args) {
 
     if (!(label.equalsIgnoreCase("nf") || label.equalsIgnoreCase("nakedafraid"))) {
@@ -171,207 +199,42 @@ public class NakedAndAfraid extends JavaPlugin {
       return true;
     }
 
-    if (args[0].equalsIgnoreCase("reloadconfig")) {
-      if (!sender.hasPermission("nakedandafraid.reload")) {
-        sender.sendMessage("§cYou don't have permission to do that.");
+    switch (args[0].toLowerCase()) {
+      case "reloadconfig" -> {
+        if (!sender.hasPermission("nakedandafraid.reload")) {
+          sender.sendMessage("§cYou don't have permission to do that.");
+          return true;
+        }
+        reloadConfig();
+        spawnManager.loadSpawns();
+        sender.sendMessage("§aNaked and Afraid config reloaded.");
         return true;
       }
-      reloadConfig();
-      spawnManager.loadSpawns();
-      sender.sendMessage("§aNaked and Afraid config reloaded.");
-      return true;
+      case "spawn" -> { return spawnManager.handleCommand(sender, args); }
+      case "team" -> { return teamCommands.handleTeamCommand(sender, args); }
+      case "user" -> { return teamCommands.handleUserCommand(sender, args); }
+      default -> sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
     }
-
-    if (args[0].equalsIgnoreCase("spawn")) {
-      return spawnManager.handleCommand(sender, args);
-    }
-
-    if (args[0].equalsIgnoreCase("team")) {
-      return teamCommands.handleTeamCommand(sender, args);
-    }
-
-    if (args[0].equalsIgnoreCase("user")) {
-      return teamCommands.handleUserCommand(sender, args);
-    }
-
-    sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
     return true;
   }
 
+  /**
+   * Retrieves the teleport helper instance.
+   *
+   * @return The {@link TeleportHelper} for this plugin.
+   */
+  @NotNull
   public TeleportHelper getTeleportHelper() {
     return teleportHelper;
   }
 
-  @Override
-  public List<String> onTabComplete(@NotNull CommandSender sender,
-                                    Command command,
-                                    @NotNull String alias,
-                                    String @NotNull [] args) {
-    if (command.getName().equalsIgnoreCase("nf") || command.getName().equalsIgnoreCase("nakedafraid")) {
-      if (args.length == 1) {
-        List<String> completions = new ArrayList<>();
-        completions.add("help");
-        if (sender.hasPermission("nakedandafraid.reload")) {
-          completions.add("reloadconfig");
-        }
-        completions.add("spawn");
-        completions.add("team");
-        completions.add("user");
-        return completions;
-      }
-
-      if (args[0].equalsIgnoreCase("spawn")) {
-        List<String> spawnSubs = List.of("create", "rename", "remove", "list", "tp", "tpall");
-
-        if (args.length == 2) {
-          String partial = args[1].toLowerCase();
-          List<String> result = new ArrayList<>();
-          for (String sub : spawnSubs) {
-            if (sub.startsWith(partial)) result.add(sub);
-          }
-          return result;
-        }
-
-        SpawnManager spawnManager = this.spawnManager;
-        if (spawnManager == null) return Collections.emptyList();
-
-        if (args.length == 3) {
-          String sub = args[1].toLowerCase();
-
-          if (sub.equals("rename") || sub.equals("remove") || sub.equals("tp")) {
-            String partial = args[2].toLowerCase();
-            List<String> matchingSpawns = new ArrayList<>();
-            for (String spawnName : spawnManager.getSpawns().keySet()) {
-              if (spawnName.toLowerCase().startsWith(partial)) matchingSpawns.add(spawnName);
-            }
-            return matchingSpawns;
-          }
-          if (sub.equals("create")) {
-            return Collections.emptyList();
-          }
-        }
-
-        if (args.length == 4) {
-          String sub = args[1].toLowerCase();
-          if (sub.equals("create") || sub.equals("tp")) {
-            String partialPlayer = args[3].toLowerCase();
-            List<String> players = new ArrayList<>();
-            for (Player p : Bukkit.getOnlinePlayers()) {
-              if (p.getName().toLowerCase().startsWith(partialPlayer)) {
-                players.add(p.getName());
-              }
-            }
-            return players;
-          }
-        }
-        return Collections.emptyList();
-      }
-
-      if (args[0].equalsIgnoreCase("team")) {
-        List<String> teamSubs = List.of("create", "remove", "list", "block", "setblock");
-
-        if (args.length == 2) {
-          String partial = args[1].toLowerCase();
-          List<String> result = new ArrayList<>();
-          for (String sub : teamSubs) {
-            if (sub.startsWith(partial)) result.add(sub);
-          }
-          for (var team : teamsManager.getTeams()) {
-            if (team.getName().toLowerCase().startsWith(partial)) result.add(team.getName());
-          }
-          return result;
-        }
-
-        if (args.length == 3) {
-          String possibleTeam = args[1].toLowerCase();
-          if (teamsManager.teamExists(possibleTeam)) {
-            List<String> result = new ArrayList<>();
-            String partial = args[2].toLowerCase();
-            for (String sub : List.of("block", "setblock")) {
-              if (sub.startsWith(partial)) result.add(sub);
-            }
-            return result;
-          }
-          if (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("setblock")) {
-            String partial = args[2].toLowerCase();
-            List<String> matchingTeams = new ArrayList<>();
-            for (var team : teamsManager.getTeams()) {
-              if (team.getName().toLowerCase().startsWith(partial)) matchingTeams.add(team.getName());
-            }
-            return matchingTeams;
-          }
-          if (args[1].equalsIgnoreCase("block")) {
-            String partial = args[2].toLowerCase();
-            List<String> matchingTeams = new ArrayList<>();
-            for (var team : teamsManager.getTeams()) {
-              if (team.getName().toLowerCase().startsWith(partial)) matchingTeams.add(team.getName());
-            }
-            return matchingTeams;
-          }
-        }
-
-        if (args.length == 4 && teamsManager.teamExists(args[1].toLowerCase()) && args[2].equalsIgnoreCase("block")) {
-          String partial = args[3].toLowerCase();
-          if ("selector".startsWith(partial)) return List.of("selector");
-        }
-        if (args.length == 5 && teamsManager.teamExists(args[1].toLowerCase()) && args[2].equalsIgnoreCase("block") && args[3].equalsIgnoreCase("selector")) {
-          String partialPlayer = args[4].toLowerCase();
-          List<String> players = new ArrayList<>();
-          for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.getName().toLowerCase().startsWith(partialPlayer)) players.add(p.getName());
-          }
-          return players;
-        }
-
-        if (args.length >= 4 && teamsManager.teamExists(args[1].toLowerCase()) && args[2].equalsIgnoreCase("setblock")) {
-          return Collections.emptyList();
-        }
-      }
-
-      if (args[0].equalsIgnoreCase("user")) {
-        if (args.length == 2) {
-          String partialPlayer = args[1].toLowerCase();
-          List<String> players = new ArrayList<>();
-          for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.getName().toLowerCase().startsWith(partialPlayer)) players.add(p.getName());
-          }
-          return players;
-        }
-        if (args.length == 3) {
-          if ("team".startsWith(args[2].toLowerCase())) return List.of("team");
-        }
-        if (args.length == 4 && args[2].equalsIgnoreCase("team")) {
-          List<String> teamUserSubs = List.of("add", "remove", "list");
-          String partial = args[3].toLowerCase();
-          List<String> result = new ArrayList<>();
-          for (String sub : teamUserSubs) {
-            if (sub.startsWith(partial)) result.add(sub);
-          }
-          return result;
-        }
-        if (args.length == 5 && args[2].equalsIgnoreCase("team") && (
-                args[3].equalsIgnoreCase("add") || args[3].equalsIgnoreCase("remove"))
-        ) {
-          String partial = args[4].toLowerCase();
-          List<String> matchingTeams = new ArrayList<>();
-          for (var team : teamsManager.getTeams()) {
-            if (team.getName().toLowerCase().startsWith(partial)) matchingTeams.add(team.getName());
-          }
-          return matchingTeams;
-        }
-      }
-    }
-    return Collections.emptyList();
-  }
-
   /**
-   * Sends help message for /nf commands.
+   * Sends paginated help message to the command sender.
    *
-   * @param sender The command sender.
+   * @param sender The command sender to display the help message to.
+   * @param page   Page number to display (1-based).
    */
-  private final int HELP_LINES_PER_PAGE = 6;
-
-  private void sendHelpMessage(CommandSender sender, int page) {
+  private void sendHelpMessage(@NotNull CommandSender sender, int page) {
     List<String> helpLines = List.of(
             "§e/nf help §7- Show this help message",
             "§e/nf §7- Alias for /nf help",
@@ -389,6 +252,7 @@ public class NakedAndAfraid extends JavaPlugin {
             "§e/nf user (player name) team list §7- List all teams a player is in"
     );
 
+    int HELP_LINES_PER_PAGE = 6;
     int totalPages = (int) Math.ceil(helpLines.size() / (double) HELP_LINES_PER_PAGE);
 
     if (page < 1) page = 1;
@@ -404,5 +268,28 @@ public class NakedAndAfraid extends JavaPlugin {
     }
 
     sender.sendMessage("§7Page §e" + page + " §7of §e" + totalPages);
+  }
+
+  /**
+   * Sends formatted plugin startup information to the console.
+   */
+  private void logStartupInfo() {
+    ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
+
+    console.sendMessage(" ");
+    console.sendMessage(Component.text("__   ____  _______ ").color(NamedTextColor.GOLD));
+    console.sendMessage(Component.text("| \\ | | | | ____||").color(NamedTextColor.GOLD));
+    console.sendMessage(Component.text("|  \\| | | | ||_   ").color(NamedTextColor.GOLD));
+    console.sendMessage(Component.text("| |\\| | | | __||  ").color(NamedTextColor.GOLD));
+    console.sendMessage(Component.text("|_| \\_|_| |_||    ").color(NamedTextColor.GOLD));
+    console.sendMessage(Component.empty());
+    console.sendMessage(Component.text("NakedAndAfraid Plugin ").color(NamedTextColor.GOLD)
+            .append(Component.text("v" + this.getDescription().getVersion()).color(NamedTextColor.DARK_RED)));
+    console.sendMessage(Component.text("Running on ").color(NamedTextColor.YELLOW)
+            .append(Component.text(Bukkit.getServer().getName()).color(NamedTextColor.AQUA))
+            .append(Component.text(" " + Bukkit.getServer().getVersion()).color(NamedTextColor.WHITE)));
+    console.sendMessage(Component.empty());
+    console.sendMessage(Component.text("Plugin enabled successfully!").color(NamedTextColor.GREEN));
+    console.sendMessage(Component.empty());
   }
 }
