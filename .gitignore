@@ -2,7 +2,6 @@
 *.class
 
 # Ignore IDE files (IntelliJ, Eclipse)
-.github
 .idea/
 *.iml
 *.ipr
@@ -18,14 +17,8 @@
 target/
 build/
 
-# Ignore config files
-config.yml
+# Ignore secrets
 secrets.json
-build.gradle
-settings.gradle
-CONTRIBUTING.md
-CODE_OF_CONDUCT.md
-README.md
 
 # Ignore OS-generated files
 .DS_Store
