@@ -130,6 +130,9 @@ team-block: LODESTONE
 ## License
 This project is licensed under the GNU GENERAL PUBLIC LICENSE. See [LICENSE](LICENSE) for details.
 
+## Reporting Vulnerabilites
+To report **Security Vulnerabilites**, please see [SECURITY.md](SECURITY.md) for details.
+
 ## Building from Source
 
 Clone the repository and build with Gradle:
