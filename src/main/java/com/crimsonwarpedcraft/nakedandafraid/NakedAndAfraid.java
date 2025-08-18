@@ -54,8 +54,16 @@ public class NakedAndAfraid extends JavaPlugin {
     teleportHelper = new TeleportHelper(this);
 
     if (getConfig().getBoolean("disable-tab", true)) {
-      TabListClearer.register(this);
-      getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+      if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+        try {
+          TabListClearer.register(this);
+          getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+        } catch (Throwable t) {
+          getLogger().warning("Failed to enable Tab Hider due to an error: " + t.getMessage());
+        }
+      } else {
+        getLogger().warning("ProtocolLib not found! Tab Hider is disabled.");
+      }
     }
 
     ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
@@ -103,8 +111,16 @@ public class NakedAndAfraid extends JavaPlugin {
     }
 
     if (getConfig().getBoolean("disable-tab", true)) {
-      TabListClearer.register(this);
-      getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+      if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+        try {
+          TabListClearer.register(this);
+          getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+        } catch (Throwable t) {
+          getLogger().warning("Failed to enable Tab Hider due to an error: " + t.getMessage());
+        }
+      } else {
+        getLogger().warning("ProtocolLib not found! Tab Hider is disabled.");
+      }
     }
 
     if (getConfig().getBoolean("armor-damage.enabled", true)) {
