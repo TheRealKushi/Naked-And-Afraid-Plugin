@@ -79,12 +79,16 @@ public class TeleportHelper implements Listener {
                         player.teleport(target);
                         player.sendMessage("§aTeleported!");
                     }
+                    // Plays the noteblock sound on the player location
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
                     this.cancel();
                     return;
                 }
 
-                bossBar.setTitle("Deathcraft starts in " + timeLeft);
+                // Uses the countdown template for the bossbar title
+                String tickMessage = messageTemplate.replace("{time}", String.valueOf(timeLeft));
+                bossBar.setTitle(tickMessage);
+
                 bossBar.setProgress((double) timeLeft / duration);
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1, 1);
 
@@ -92,6 +96,7 @@ public class TeleportHelper implements Listener {
             }
         }.runTaskTimer(plugin, 0L, 20L);
     }
+
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {

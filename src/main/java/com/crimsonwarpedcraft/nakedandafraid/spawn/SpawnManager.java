@@ -41,6 +41,7 @@ public class SpawnManager {
                 String worldName = spawnsConfig.getString("spawns." + key + ".world");
                 String target = spawnsConfig.getString("spawns." + key + ".targetPlayer", key);
 
+                assert worldName != null;
                 World world = Bukkit.getWorld(worldName);
                 if (world != null) {
                     Location loc = new Location(world, x, y, z);
