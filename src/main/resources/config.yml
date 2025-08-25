@@ -57,6 +57,8 @@ countdown-duration: 10
 countdown-color: RED
 # Value that determines whether the player will be frozen in place until cooldown is over.
 countdown-freeze: true
+# Message shown in the countdown bossbar. Use {time} as a placeholder for remaining seconds.
+countdown-message: "Game starts in {time}"
 # Whether teleport happens immediately (false) or after countdown ends (true).
 teleport-on-countdown-end: false
 # Value that determines what order the teleport command will use if there are multiple spawns set to the same person.

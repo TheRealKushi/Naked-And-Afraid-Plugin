@@ -52,7 +52,9 @@ public class TeleportHelper implements Listener {
 
         boolean teleportOnCountdownEnd = plugin.isTeleportOnCountdownEnd();
 
-        BossBar bossBar = Bukkit.createBossBar("Deathcraft starts in " + duration, color, BarStyle.SOLID);
+        String messageTemplate = plugin.getConfig().getString("countdown-message", "Game starts in {time}");
+        String formattedMessage = messageTemplate.replace("{time}", String.valueOf(duration));
+        BossBar bossBar = Bukkit.createBossBar(formattedMessage, color, BarStyle.SOLID);
         bossBar.addPlayer(player);
         bossBar.setProgress(1);
 
