@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,9 +40,6 @@ public class NakedAndAfraid extends JavaPlugin {
 
   /** Listener for suppressing chat player join/quit messages. */
   private JoinQuitMessageSuppressor joinQuitMessageSuppressor;
-
-  /** Utility class for hiding players from tab list using ProtocolLib. */
-  private TabListClearer tabListClearer;
 
   /** Manages player spawns saving, loading and commands. */
   private SpawnManager spawnManager;
@@ -176,6 +174,9 @@ public class NakedAndAfraid extends JavaPlugin {
     return multipleSpawnPriority;
   }
 
+  /**
+   * Defines commands and subcommands for the plugin.
+   */
   @Override
   public boolean onCommand(final @NotNull CommandSender sender,
                            final @NotNull Command command,
@@ -216,6 +217,97 @@ public class NakedAndAfraid extends JavaPlugin {
       default -> sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
     }
     return true;
+  }
+
+  /**
+   * Handles tab-completion for NakedAndAfraid's commands and subcommands.
+   */
+  @Override
+  public List<String> onTabComplete(@NotNull CommandSender sender,
+                                              @NotNull Command command,
+                                              @NotNull String alias,
+                                              String @NotNull [] args) {
+
+    if (!(command.getName().equalsIgnoreCase("nf") || command.getName().equalsIgnoreCase("nakedafraid"))) {
+      return null;
+    }
+
+    if (args.length == 1) {
+      return List.of("help", "reloadconfig", "spawn", "team", "user");
+    }
+
+    if (args.length == 2) {
+      switch (args[0].toLowerCase()) {
+        case "spawn":
+          return List.of("create", "rename", "remove", "list", "tp", "tpall");
+        case "team":
+          return teamsManager.getTeams().stream()
+                  .map(TeamsManager.Team::getName)
+                  .toList();
+        case "user":
+          return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+      }
+    }
+
+    if (args.length == 3) {
+      if (args[0].equalsIgnoreCase("spawn") &&
+              List.of("remove", "tp").contains(args[1].toLowerCase())) {
+        return spawnManager.getSpawns().keySet().stream().toList();
+      }
+      if (args[0].equalsIgnoreCase("team")) {
+        return List.of("create", "remove", "list", "block", "setblock");
+      }
+      if (args[0].equalsIgnoreCase("user")) {
+        return List.of("team");
+      }
+    }
+
+    if (args.length == 4) {
+      if (args[0].equalsIgnoreCase("spawn") && args[1].equalsIgnoreCase("tp")) {
+        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+      }
+      if (args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("team")) {
+        return List.of("add", "remove", "list");
+      }
+      if (args[0].equalsIgnoreCase("team")) {
+        String subCommand = args[2].toLowerCase();
+        if (subCommand.equals("block")) {
+          return List.of("selector");
+        } else if (subCommand.equals("setblock")) {
+          if (sender instanceof Player player) {
+            return List.of(String.valueOf(player.getLocation().getBlockX()));
+          }
+        }
+      }
+    }
+
+    if (args.length == 5) {
+      if (args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("team") &&
+              List.of("add", "remove").contains(args[3].toLowerCase())) {
+        return teamsManager.getTeams().stream()
+                .map(TeamsManager.Team::getName)
+                .toList();
+      }
+      if (args[0].equalsIgnoreCase("team")) {
+        String subCommand = args[2].toLowerCase();
+        if (subCommand.equals("block") && args[3].equalsIgnoreCase("selector") && sender instanceof Player player) {
+          return List.of(player.getName());
+        }
+        if (subCommand.equals("setblock") && sender instanceof Player player) {
+          return List.of(
+                  String.valueOf(player.getLocation().getBlockY())
+          );
+        }
+      }
+    }
+
+    if (args.length == 6) {
+      if (args[0].equalsIgnoreCase("team") && args[2].equalsIgnoreCase("setblock") && sender instanceof Player player) {
+        return List.of(String.valueOf(player.getLocation().getBlockZ()));
+      }
+    }
+
+    return List.of();
   }
 
   /**
