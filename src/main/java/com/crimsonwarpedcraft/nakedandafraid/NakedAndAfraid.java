@@ -243,14 +243,22 @@ public class NakedAndAfraid extends JavaPlugin {
         }
         if (args.length == 3) {
           if (args[1].equalsIgnoreCase("create")) {
-            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            return List.of();
           }
-          if (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("tp")) {
+          if (args[1].equalsIgnoreCase("rename") || args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("tp")) {
             return spawnManager.getSpawns().keySet().stream().toList();
           }
         }
-        if (args.length == 4 && args[1].equalsIgnoreCase("tp")) {
-          return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        if (args.length == 4) {
+          if (args[1].equalsIgnoreCase("create")) {
+            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+          }
+          if (args[1].equalsIgnoreCase("rename")) {
+            return List.of();
+          }
+          if (args[1].equalsIgnoreCase("tp")) {
+            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+          }
         }
       }
 
@@ -258,18 +266,23 @@ public class NakedAndAfraid extends JavaPlugin {
         if (args.length == 2) {
           return List.of("create", "remove", "list", "block", "setblock");
         }
-        if (args.length == 3 && args[1].equalsIgnoreCase("remove")) {
-          return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+        if (args.length == 3) {
+          if (args[1].equalsIgnoreCase("remove")) {
+            return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+          }
+          if (args[1].equalsIgnoreCase("create")) {
+            return List.of();
+          }
+          if (args[1].equalsIgnoreCase("setblock") || args[1].equalsIgnoreCase("block")) {
+            return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+          }
         }
         if (args.length == 4) {
-          String subCommand = args[1].toLowerCase();
-          if (subCommand.equals("block") && args[2].equalsIgnoreCase("selector") && sender instanceof Player player) {
-            return List.of(player.getName());
+          if (args[1].equalsIgnoreCase("block") && args[2].equalsIgnoreCase("selector")) {
+            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
           }
-          if (subCommand.equals("setblock") && sender instanceof Player player) {
-            return List.of(
-                    String.valueOf(player.getLocation().getBlockX())
-            );
+          if (args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
+            return List.of(String.valueOf(player.getLocation().getBlockX()));
           }
         }
         if (args.length == 5 && args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
@@ -282,14 +295,13 @@ public class NakedAndAfraid extends JavaPlugin {
 
       case "user" -> {
         if (args.length == 2) {
-          // Autocomplete online players
           return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
         }
         if (args.length == 3 && args[2].equalsIgnoreCase("team")) {
           return List.of("add", "remove", "list");
         }
         if (args.length == 4 && args[2].equalsIgnoreCase("team") &&
-                List.of("add", "remove").contains(args[3].toLowerCase())) {
+                (args[3].equalsIgnoreCase("add") || args[3].equalsIgnoreCase("remove"))) {
           return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
         }
       }
@@ -369,7 +381,7 @@ public class NakedAndAfraid extends JavaPlugin {
             .append(Component.text(Bukkit.getServer().getName()).color(NamedTextColor.AQUA))
             .append(Component.text(" " + Bukkit.getServer().getVersion()).color(NamedTextColor.WHITE)));
     console.sendMessage(Component.empty());
-    console.sendMessage(Component.text("Plugin enabled successfully!").color(NamedTextColor.GREEN));
+    console.sendMessage(Component.text("NakedAndAfraid Plugin enabled successfully!").color(NamedTextColor.GREEN));
     console.sendMessage(Component.empty());
   }
 }
