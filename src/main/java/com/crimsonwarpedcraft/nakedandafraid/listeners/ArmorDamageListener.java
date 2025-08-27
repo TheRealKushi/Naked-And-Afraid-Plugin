@@ -1,9 +1,13 @@
 package com.crimsonwarpedcraft.nakedandafraid.listeners;
 
-import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerItemBreakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -22,29 +26,47 @@ public class ArmorDamageListener implements Listener {
         this.plugin = plugin;
         this.damageAmount = plugin.getConfig().getDouble("armor-damage.damage-amount", 1.0);
         this.damageIntervalTicks = plugin.getConfig().getLong("armor-damage.damage-interval-ticks", 20L);
+
+        // Periodic task to check online players
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    if (hasAnyArmor(player)) {
+                        if (!damageTasks.containsKey(player.getUniqueId())) {
+                            startDamageTask(player);
+                        }
+                    } else {
+                        cancelDamageTask(player);
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 20L); // checks every second
     }
 
-    private void debugLog(String message) {
-        if (plugin.getConfig().getBoolean("debug-mode", false)) {
-            plugin.getLogger().info(message);
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        // Check if player is changing armor
+        if (event.getSlotType() == InventoryType.SlotType.ARMOR) {
+            Player player = (Player) event.getWhoClicked();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (hasAnyArmor(player)) {
+                    startDamageTask(player);
+                } else {
+                    cancelDamageTask(player);
+                }
+            });
         }
     }
 
     @EventHandler
-    public void onPlayerArmorChange(PlayerArmorChangeEvent event) {
+    public void onItemBreak(PlayerItemBreakEvent event) {
         Player player = event.getPlayer();
-
-        debugLog("Armor changed for player " + player.getName());
-
-        if (hasAnyArmor(player)) {
-            debugLog("Player " + player.getName() + " is wearing armor. Starting damage task.");
-            if (!damageTasks.containsKey(player.getUniqueId())) {
-                startDamageTask(player);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!hasAnyArmor(player)) {
+                cancelDamageTask(player);
             }
-        } else {
-            debugLog("Player " + player.getName() + " has no armor. Cancelling damage task.");
-            cancelDamageTask(player);
-        }
+        });
     }
 
     private boolean hasAnyArmor(final Player player) {
@@ -57,19 +79,23 @@ public class ArmorDamageListener implements Listener {
     }
 
     private void startDamageTask(final Player player) {
+        if (damageTasks.containsKey(player.getUniqueId())) return;
+
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
-                if (!player.isOnline() || player.getGameMode().name().equalsIgnoreCase("CREATIVE")) {
+                if (!player.isOnline() || player.getGameMode() == GameMode.CREATIVE) {
                     cancel();
                     damageTasks.remove(player.getUniqueId());
                     return;
                 }
 
-                debugLog("Applying scheduled damage to player " + player.getName());
-
                 double damageInHP = damageAmount * 2;
                 player.damage(damageInHP);
+
+                if (plugin.getConfig().getBoolean("debug-mode", false)) {
+                    plugin.getLogger().info("Applying armor damage to player " + player.getName());
+                }
             }
         };
         task.runTaskTimer(plugin, 0L, damageIntervalTicks);
@@ -78,8 +104,6 @@ public class ArmorDamageListener implements Listener {
 
     private void cancelDamageTask(final Player player) {
         BukkitRunnable task = damageTasks.remove(player.getUniqueId());
-        if (task != null) {
-            task.cancel();
-        }
+        if (task != null) task.cancel();
     }
 }
