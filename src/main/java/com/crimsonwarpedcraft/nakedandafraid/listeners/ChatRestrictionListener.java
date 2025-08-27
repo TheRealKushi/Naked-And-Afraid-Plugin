@@ -1,27 +1,25 @@
 package com.crimsonwarpedcraft.nakedandafraid.listeners;
 
+import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import io.papermc.paper.event.player.AsyncChatEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 
 /**
- * Listener to restrict chat to server operators only.
+ * A listener that restricts chat to server operators only, cancelling messages from non-op players.
  */
 public class ChatRestrictionListener implements Listener {
 
     /**
-     * Cancels chat messages from non-ops.
+     * Cancels chat messages from players who are not server operators.
      *
-     * @param event Player chat event.
+     * @param event the AsyncChatEvent triggered when a player sends a chat message
      */
     @EventHandler
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
+    public void onPlayerChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
         if (!player.isOp()) {
             event.setCancelled(true);
         }
     }
 }
-

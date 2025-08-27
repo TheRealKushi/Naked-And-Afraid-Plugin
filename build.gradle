@@ -1,21 +1,26 @@
-import com.github.spotbugs.snom.SpotBugsTask
-import java.text.SimpleDateFormat
-
 plugins {
     id 'checkstyle'
-    id "com.github.spotbugs" version "5.0.+"
-    id 'com.github.johnrengelman.shadow' version '7.1.+'
+    id 'com.github.spotbugs' version '6.1.7'
+    id 'com.gradleup.shadow' version '8.3.6'
     id 'java'
 }
 
-group = "com.crimsonwarpedcraft.nakedandafraid"
+group = 'com.crimsonwarpedcraft.nakedandafraid'
 
+
+import com.github.spotbugs.snom.SpotBugsReport
+import com.github.spotbugs.snom.SpotBugsTask
+
+import java.text.SimpleDateFormat
+
+// Returns the current UTC timestamp in the format yyMMdd-HHmm
 static def getTime() {
-    SimpleDateFormat sdf = new SimpleDateFormat("yyMMdd-HHmm")
-    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
-    return sdf.format(new Date()).toString()
+    def sdf = new SimpleDateFormat('yyMMdd-HHmm')
+    sdf.setTimeZone(TimeZone.getTimeZone('UTC'))
+    return sdf.format(new Date())
 }
 
+// Set version based on 'ver' property or fallback to timestamp with -SNAPSHOT
 // Set version to version property if supplied
 String shortVersion = null
 if (hasProperty('ver')) {
@@ -37,8 +42,8 @@ if (shortVersion == null || shortVersion == "") {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 repositories {
@@ -46,33 +51,31 @@ repositories {
         name = 'papermc'
         url = 'https://repo.papermc.io/repository/maven-public/'
         content {
-            includeModule("io.papermc.paper", "paper-api")
-            includeModule("io.papermc", "paperlib")
-            includeModule("net.md-5", "bungeecord-chat")
+            includeModule('io.papermc.paper', 'paper-api')
+            includeModule('io.papermc', 'paperlib')
+            includeModule('net.md-5', 'bungeecord-chat')
         }
     }
-
     maven {
         name = 'minecraft'
         url = 'https://libraries.minecraft.net'
         content {
-            includeModule("com.mojang", "brigadier")
+            includeModule('com.mojang', 'brigadier')
         }
     }
-
     mavenCentral()
 }
 
 dependencies {
-    compileOnly 'io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT'
-    compileOnly 'com.github.spotbugs:spotbugs-annotations:4.6.0'
-    implementation 'io.papermc:paperlib:1.0.7'
-    spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.12.0'
-    testCompileOnly 'com.github.spotbugs:spotbugs-annotations:4.6.0'
-    testImplementation 'io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    compileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.3'
+    implementation 'io.papermc:paperlib:1.0.8'
     compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
+    spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.13.0'
+    testCompileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.3'
+    testImplementation 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
 }
 
 test {
@@ -80,34 +83,29 @@ test {
 }
 
 processResources {
-    filesMatching("**/plugin.yml") {
-        expand ( NAME: rootProject.name, VERSION: version, PACKAGE: project.group.toString() )
+    filesMatching('**/plugin.yml') {
+        expand(
+                NAME: rootProject.name,
+                VERSION: version,
+                PACKAGE: project.group.toString()
+        )
     }
 }
 
 checkstyle {
-    toolVersion '10.20.1'
+    toolVersion = '10.20.1'
     maxWarnings = 0
 }
 
 configurations.checkstyle {
-    resolutionStrategy.capabilitiesResolution.withCapability("com.google.collections:google-collections") {
-        select("com.google.guava:guava:23.0")
+    resolutionStrategy.capabilitiesResolution.withCapability('com.google.collections:google-collections') {
+        select('com.google.guava:guava:23.0')
     }
 }
 
 tasks.withType(Checkstyle).configureEach {
-    // Disable Checkstyle so it doesn't fail the build
+    // Disable Checkstyle to prevent build failures
     enabled = false
-}
-
-tasks.withType(SpotBugsTask).configureEach {
-    // Disable SpotBugs so it doesn't fail the build
-    enabled = false
-}
-
-
-tasks.withType(Checkstyle).configureEach {
     reports {
         xml.required = false
         html.required = true
@@ -115,12 +113,12 @@ tasks.withType(Checkstyle).configureEach {
 }
 
 tasks.withType(SpotBugsTask).configureEach {
-    reports.create("html") {
-        required = true
-    }
-    reports.create("xml") {
-        required = false
-    }
+    // Disable SpotBugs to prevent build failures
+    enabled = false
+    reports(({
+        html { required = true }
+        xml { required = false }
+    } as Closure<NamedDomainObjectContainer<? extends SpotBugsReport>>))
 }
 
 shadowJar {
@@ -129,7 +127,7 @@ shadowJar {
     minimize()
 }
 
-// Disable jar and replace with shadowJar
+// Disable default jar task in favor of shadowJar
 jar.enabled = false
 assemble.dependsOn(shadowJar)
 
@@ -141,14 +139,12 @@ tasks.register('printProjectName') {
 
 tasks.register('release') {
     dependsOn build
-
     doLast {
-        if (!version.endsWith("-SNAPSHOT")) {
-            // Rename final JAR to trim off version information
-            shadowJar.archiveFile.get().getAsFile()
-                    .renameTo(layout.buildDirectory.get().toString() + File.separator + 'libs' + File.separator
-                            + rootProject.name + '.jar')
+        if (!version.endsWith('-SNAPSHOT')) {
+            // Rename final JAR to remove version information
+            shadowJar.archiveFile.get().asFile.renameTo(
+                    file("${layout.buildDirectory.get()}/libs/${rootProject.name}.jar")
+            )
         }
     }
 }
-
