@@ -147,7 +147,7 @@ public class SpawnManager {
                 if (sender instanceof Player p) {
                     world = p.getWorld();
                 } else {
-                    world = Bukkit.getWorlds().get(0);
+                    world = Bukkit.getWorlds().getFirst();
                 }
                 loc = new Location(world, x, y, z);
 
@@ -316,7 +316,7 @@ public class SpawnManager {
             SpawnData chosen = null;
             switch (priority) {
                 case "FIRST":
-                    chosen = matchingSpawns.get(0);
+                    chosen = matchingSpawns.getFirst();
                     break;
                 case "LAST":
                     chosen = matchingSpawns.get(matchingSpawns.size() - 1);
@@ -325,7 +325,7 @@ public class SpawnManager {
                     chosen = matchingSpawns.get(new Random().nextInt(matchingSpawns.size()));
                     break;
                 default:
-                    chosen = matchingSpawns.get(0);
+                    chosen = matchingSpawns.getFirst();
             }
             plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, chosen.location());
             sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to their spawn (" + priority + ")...");
