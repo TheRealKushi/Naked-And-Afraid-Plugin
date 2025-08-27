@@ -16,3 +16,4 @@ permissions:
   nakedandafraid.reload:
     description: Allows for reloading the NakedAndAfraid plugin.
     default: op
+
