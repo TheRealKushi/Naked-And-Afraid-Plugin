@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a bug! Please fill out the following fields.
+        Thanks for reporting a bug! Please fill out the following fields:
   - type: textarea
     id: describe_the_bug
     attributes:
@@ -51,11 +51,3 @@ body:
       placeholder: What actually happened?
     validations:
       required: false
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Bug Severity
-      options:
-        - Low
-        - Medium
-        - High
