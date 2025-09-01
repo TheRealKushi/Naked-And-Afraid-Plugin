@@ -9,6 +9,11 @@ A Minecraft survival plugin for PaperMC/Spigot/Folia/Purpur servers which adds a
 [![Spigot](https://img.shields.io/badge/Spigot-NakedAndAfraid-red?logo=spigotmc)](https://www.spigotmc.org/resources/naked-and-afraid-plugin.128063/)
 ---
 
+## Tutorial and Showcase
+[![Official Plugin Showcase](https://img.youtube.com/vi/kYemXpHCyls/hqdefault.jpg)](https://www.youtube.com/watch?v=kYemXpHCyls "Official Plugin Showcase")
+
+---
+
 ## Features
 
 ### Gameplay Mechanics ⚔️
