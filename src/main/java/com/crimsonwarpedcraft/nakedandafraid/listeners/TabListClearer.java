@@ -2,52 +2,71 @@ package com.crimsonwarpedcraft.nakedandafraid.listeners;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
-import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.EnumWrappers;
 import com.comphenix.protocol.wrappers.PlayerInfoData;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 public class TabListClearer {
 
+    private static final Set<UUID> hiddenPlayers = new HashSet<>();
+
     public static void register(JavaPlugin plugin) {
-        ProtocolLibrary.getProtocolManager().addPacketListener(
-                new PacketAdapter(plugin, PacketType.Play.Server.PLAYER_INFO) {
-                    @Override
-                    public void onPacketSending(PacketEvent event) {
-                        Player viewer = event.getPlayer();
-                        PacketContainer packet = event.getPacket();
+        ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
 
-                        // Read the original actions and entries
-                        Set<EnumWrappers.PlayerInfoAction> actions = packet.getPlayerInfoActions().read(0);
-                        List<PlayerInfoData> originalList = packet.getPlayerInfoDataLists().read(0);
+        // Intercept PLAYER_INFO packets
+        protocolManager.addPacketListener(new PacketAdapter(plugin, ListenerPriority.HIGHEST, PacketType.Play.Server.PLAYER_INFO) {
+            @Override
+            public void onPacketSending(PacketEvent event) {
+                if (event.getPacket().getPlayerInfoDataLists().size() == 0) return;
 
-                        if (originalList == null || originalList.isEmpty()) return;
+                List<PlayerInfoData> dataList = event.getPacket().getPlayerInfoDataLists().read(0);
+                if (dataList == null || dataList.isEmpty()) return;
 
-                        // Filter the entries: only include non-null entries for the viewer
-                        List<PlayerInfoData> filteredList = originalList.stream()
-                                .filter(info -> info != null && info.getProfile() != null)
-                                .filter(info -> info.getProfile().getUUID().equals(viewer.getUniqueId()))
-                                .collect(Collectors.toList());
+                dataList.removeIf(infoData -> {
+                    if (infoData == null) return true; // remove null entries
+                    return hiddenPlayers.contains(infoData.getProfile().getId());
+                });
+            }
+        });
 
-                        try {
-                            PacketContainer newPacket = new PacketContainer(PacketType.Play.Server.PLAYER_INFO);
-                            newPacket.getPlayerInfoActions().write(0, actions);
-                            newPacket.getPlayerInfoDataLists().write(0, filteredList);
+        // Hide existing players
+        Bukkit.getOnlinePlayers().forEach(player -> hidePlayer(player, plugin));
 
-                            ProtocolLibrary.getProtocolManager().sendServerPacket(viewer, newPacket);
-                            event.setCancelled(true);
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-                }
-        );
+        // Hide players on join
+        Bukkit.getServer().getPluginManager().registerEvents(new PlayerJoinListener(plugin), plugin);
+    }
+
+    public static void hidePlayer(Player player, JavaPlugin plugin) {
+        hiddenPlayers.add(player.getUniqueId());
+        Bukkit.getOnlinePlayers().forEach(other -> {
+            if (!other.equals(player)) {
+                other.hidePlayer(plugin, player);
+                player.hidePlayer(plugin, other);
+            }
+        });
+    }
+
+    public static void showPlayer(Player player, JavaPlugin plugin) {
+        hiddenPlayers.remove(player);
+        Bukkit.getOnlinePlayers().forEach(other -> {
+            if (!other.equals(player)) {
+                other.showPlayer(plugin, player);
+                player.showPlayer(plugin, other);
+            }
+        });
+    }
+
+    public static boolean isHidden(Player player) {
+        return hiddenPlayers.contains(player);
     }
 }

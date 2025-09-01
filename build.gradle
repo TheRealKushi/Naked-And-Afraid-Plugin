@@ -47,7 +47,6 @@ java {
 }
 
 def testServerDir = file("$buildDir/test-server")
-def minecraftVersion = '1.21.4'
 
 repositories {
     maven {
@@ -137,7 +136,6 @@ shadowJar {
     minimize()
 }
 
-// Disable default jar task in favor of shadowJar
 jar.enabled = false
 assemble.dependsOn(shadowJar)
 
@@ -151,7 +149,6 @@ tasks.register('release') {
     dependsOn build
     doLast {
         if (!version.endsWith('-SNAPSHOT')) {
-            // Rename final JAR to remove version information
             shadowJar.archiveFile.get().asFile.renameTo(
                     file("${layout.buildDirectory.get()}/libs/${rootProject.name}.jar")
             )
@@ -180,13 +177,13 @@ tasks.register('setupServer') {
     doLast {
         file("$testServerDir/eula.txt").text = "eula=true"
 
-        // Copy your plugin
+        def versionedPluginName = "NakedAndAfraid-1.1.3d.jar"
         copy {
             from shadowJar.archiveFile
             into "$testServerDir/plugins"
+            rename { versionedPluginName }
         }
 
-        // Add OP
         def opsFile = file("$testServerDir/ops.json")
         def playerName = "TheRealKushi"
         def uuid = "d53d704e-5293-4cad-96ef-569dca9cc242"
@@ -200,5 +197,5 @@ tasks.register('runServer', JavaExec) {
     mainClass.set('io.papermc.paperclip.Main')
     classpath = files("$testServerDir/paper.jar")
     standardInput = System.in
-    jvmArgs = ['-Xmx2G', '-Dpaper.debug=true']
+    jvmArgs = ['-Xmx4G', '-Dpaper.debug=true']
 }
