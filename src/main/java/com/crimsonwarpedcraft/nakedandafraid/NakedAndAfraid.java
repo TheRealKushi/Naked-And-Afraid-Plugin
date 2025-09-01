@@ -59,6 +59,8 @@ public class NakedAndAfraid extends JavaPlugin {
   /** Handles team-related commands. */
   private TeamCommands teamCommands;
 
+  private TabListClearer tabListClearer;
+
   @Override
   public void onEnable() {
     PaperLib.suggestPaper(this);
@@ -82,18 +84,15 @@ public class NakedAndAfraid extends JavaPlugin {
     teleportHelper = new TeleportHelper(this);
 
     // Initialize tab hider if ProtocolLib is present
-    if (getConfig().getBoolean("disable-tab", true)) {
-      if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
-        try {
-          TabListClearer.register(this);
-          getLogger().info("Naked And Afraid - Tab Hider Enabled.");
-        } catch (Throwable t) {
-          getLogger().warning("Failed to enable Tab Hider due to an error: " + t.getMessage());
-        }
-      } else {
-        getLogger().warning("ProtocolLib not found! Tab Hider is disabled.");
-      }
+    if (getConfig().getBoolean("disable-tab", true) &&
+            Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+      tabListClearer = new TabListClearer(this);
+      tabListClearer.enable();
+      getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+    } else {
+      getLogger().warning("ProtocolLib not found or tab hiding disabled.");
     }
+
 
     logStartupInfo();
   }
@@ -122,18 +121,22 @@ public class NakedAndAfraid extends JavaPlugin {
       chatRestrictionListener = null;
     }
 
-    // Tab list hiding
-    if (getConfig().getBoolean("disable-tab", true)) {
-      if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
-        try {
-          TabListClearer.register(this);
-          getLogger().info("Naked And Afraid - Tab Hider Enabled.");
-        } catch (Throwable t) {
-          getLogger().warning("Failed to enable Tab Hider due to an error: " + t.getMessage());
-        }
-      } else {
-        getLogger().warning("ProtocolLib not found! Tab Hider is disabled.");
+    boolean disableTab = getConfig().getBoolean("disable-tab", true);
+
+    if (tabListClearer == null && Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+      tabListClearer = new TabListClearer(this);
+    }
+
+    if (tabListClearer != null) {
+      if (disableTab && !tabListClearer.isEnabled()) {
+        tabListClearer.enable();
+        getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+      } else if (!disableTab && tabListClearer.isEnabled()) {
+        tabListClearer.disable();
+        getLogger().info("Naked And Afraid - Tab Hider Disabled.");
       }
+    } else if (disableTab) {
+      getLogger().warning("ProtocolLib not found! Tab Hider is disabled.");
     }
 
     // Armor damage

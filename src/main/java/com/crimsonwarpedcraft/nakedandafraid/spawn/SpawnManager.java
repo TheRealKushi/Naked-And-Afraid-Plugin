@@ -147,7 +147,7 @@ public class SpawnManager {
                 if (sender instanceof Player p) {
                     world = p.getWorld();
                 } else {
-                    world = Bukkit.getWorlds().get(0);
+                    world = Bukkit.getWorlds().getFirst();
                 }
                 loc = new Location(world, x, y, z);
 
@@ -313,20 +313,12 @@ public class SpawnManager {
 
         if (!matchingSpawns.isEmpty()) {
             String priority = plugin.getMultipleSpawnPriority();
-            SpawnData chosen = null;
-            switch (priority) {
-                case "FIRST":
-                    chosen = matchingSpawns.get(0);
-                    break;
-                case "LAST":
-                    chosen = matchingSpawns.get(matchingSpawns.size() - 1);
-                    break;
-                case "RANDOM":
-                    chosen = matchingSpawns.get(new Random().nextInt(matchingSpawns.size()));
-                    break;
-                default:
-                    chosen = matchingSpawns.get(0);
-            }
+            SpawnData chosen = switch (priority) {
+                case "FIRST" -> matchingSpawns.getFirst();
+                case "LAST" -> matchingSpawns.get(matchingSpawns.size() - 1);
+                case "RANDOM" -> matchingSpawns.get(new Random().nextInt(matchingSpawns.size()));
+                default -> matchingSpawns.getFirst();
+            };
             plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, chosen.location());
             sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to their spawn (" + priority + ")...");
             return true;

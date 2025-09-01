@@ -148,11 +148,10 @@ public class TeamsManager {
         return true;
     }
 
-    public boolean removeTeam(String teamName) {
-        if (!teamExists(teamName)) return false;
+    public void removeTeam(String teamName) {
+        if (!teamExists(teamName)) return;
         teams.remove(teamName.toLowerCase());
         saveConfig();
-        return true;
     }
 
     public boolean addMember(String teamName, UUID playerUUID) {

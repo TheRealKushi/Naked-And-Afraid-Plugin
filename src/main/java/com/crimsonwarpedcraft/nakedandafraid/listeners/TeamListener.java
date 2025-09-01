@@ -70,9 +70,8 @@ public class TeamListener implements Listener {
         if (item.getType() != Material.COMPASS) return;
 
         ItemMeta meta = item.getItemMeta();
-        if (!(meta instanceof CompassMeta)) return;
+        if (!(meta instanceof CompassMeta compassMeta)) return;
 
-        CompassMeta compassMeta = (CompassMeta) meta;
         if (compassMeta.getLodestone() == null) return;
 
         TeamsManager.Team team = teamCommands.getTeamForPlayer(player);

@@ -86,25 +86,27 @@ public class TeamCommands {
 
         String userSub = args[3].toLowerCase();
 
-        switch (userSub) {
-            case "add":
+        return switch (userSub) {
+            case "add" -> {
                 if (args.length < 5) {
                     sender.sendMessage(Component.text("Usage: /nf user <player> team add <team>").color(NamedTextColor.RED));
-                    return true;
+                    yield true;
                 }
-                return handleUserTeamAdd(sender, target, args[4]);
-            case "remove":
+                yield handleUserTeamAdd(sender, target, args[4]);
+            }
+            case "remove" -> {
                 if (args.length < 5) {
                     sender.sendMessage(Component.text("Usage: /nf user <player> team remove <team>").color(NamedTextColor.RED));
-                    return true;
+                    yield true;
                 }
-                return handleUserTeamRemove(sender, target, args[4]);
-            case "list":
-                return handleUserTeamList(sender, target);
-            default:
+                yield handleUserTeamRemove(sender, target, args[4]);
+            }
+            case "list" -> handleUserTeamList(sender, target);
+            default -> {
                 sender.sendMessage(Component.text("Unknown user team subcommand.").color(NamedTextColor.RED));
-                return true;
-        }
+                yield true;
+            }
+        };
     }
 
     private boolean handleTeamCreate(CommandSender sender, String[] args) {
@@ -214,7 +216,7 @@ public class TeamCommands {
     }
 
     private boolean handleTeamSetBlock(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("Only players can use this command.").color(NamedTextColor.RED));
             return true;
         }
@@ -227,7 +229,6 @@ public class TeamCommands {
             sender.sendMessage(Component.text("Team '" + teamName + "' does not exist.").color(NamedTextColor.RED));
             return true;
         }
-        Player player = (Player) sender;
         int x, y, z;
         try {
             x = Integer.parseInt(args[3]);
