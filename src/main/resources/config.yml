@@ -38,9 +38,6 @@ armor-damage:
   # Value that determines the interval of ticks (1 second = 20 ticks) that the plugin will deal damage to players.
   damage-interval-ticks: 20
 
-# Field that contains a list of all existing worlds (gets updated on server startup), where the plugin can be disabled in certain worlds.
-enabled-worlds:
-
 # Toggles the debug mode, which provides useful info that can be important for troubleshooting errors.
 debug-mode: false
 
@@ -78,3 +75,14 @@ multiple-spawn-priority: FIRST
 max-teams: 5
 # The block that is used as a Team's Block, and where players have to click to receive their colored nametag.
 team-block: LODESTONE
+
+############################################################
+# +------------------------------------------------------+ #
+# |              Naked And Afraid (Worlds)               | #
+# +------------------------------------------------------+ #
+############################################################
+
+# Field that contains a list of all existing worlds (gets updated on server startup), where the plugin can be disabled in certain worlds.
+enabled-worlds:
+
+# End of config

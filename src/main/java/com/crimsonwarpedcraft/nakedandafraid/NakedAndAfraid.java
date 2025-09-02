@@ -16,6 +16,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -111,14 +112,21 @@ public class NakedAndAfraid extends JavaPlugin {
    * Handles enabling/disabling chat, tab, armor, and join/quit message features.
    */
   public void reloadListeners() {
+    if (tabListClearer != null && tabListClearer.isEnabled()) {
+      tabListClearer.disable();
+      tabListClearer = null;
+    }
     if (chatRestrictionListener != null) {
-      getServer().getPluginManager().callEvent(new org.bukkit.event.server.PluginDisableEvent(this));
+      HandlerList.unregisterAll(chatRestrictionListener);
+      chatRestrictionListener = null;
     }
     if (armorDamageListener != null) {
-      getServer().getPluginManager().callEvent(new org.bukkit.event.server.PluginDisableEvent(this));
+      HandlerList.unregisterAll(armorDamageListener);
+      armorDamageListener = null;
     }
     if (joinQuitMessageSuppressor != null) {
-      getServer().getPluginManager().callEvent(new org.bukkit.event.server.PluginDisableEvent(this));
+      HandlerList.unregisterAll(joinQuitMessageSuppressor);
+      joinQuitMessageSuppressor = null;
     }
 
     // Chat restriction
@@ -126,26 +134,14 @@ public class NakedAndAfraid extends JavaPlugin {
       chatRestrictionListener = new ChatRestrictionListener();
       getServer().getPluginManager().registerEvents(chatRestrictionListener, this);
       getLogger().info("Naked And Afraid - Chat Restriction Enabled.");
-    } else {
-      chatRestrictionListener = null;
     }
 
+    // Tab hiding
     boolean disableTab = getConfig().getBoolean("disable-tab", true);
-
-    if (tabListClearer == null && Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+    if (disableTab && Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
       tabListClearer = new TabListClearer(this);
-    }
-
-    if (tabListClearer != null) {
-      if (disableTab && !tabListClearer.isEnabled()) {
-        tabListClearer.enable();
-        getLogger().info("Naked And Afraid - Tab Hider Enabled.");
-      } else if (!disableTab && tabListClearer.isEnabled()) {
-        tabListClearer.disable();
-        getLogger().info("Naked And Afraid - Tab Hider Disabled.");
-      }
-    } else if (disableTab) {
-      getLogger().warning("ProtocolLib not found! Tab Hider is disabled.");
+      tabListClearer.enable();
+      getLogger().info("Naked And Afraid - Tab Hider Enabled.");
     }
 
     // Armor damage
@@ -153,8 +149,6 @@ public class NakedAndAfraid extends JavaPlugin {
       armorDamageListener = new ArmorDamageListener(this);
       getServer().getPluginManager().registerEvents(armorDamageListener, this);
       getLogger().info("Naked And Afraid - Armor Damage Enabled.");
-    } else {
-      armorDamageListener = null;
     }
 
     // Join/quit message suppression
@@ -162,8 +156,6 @@ public class NakedAndAfraid extends JavaPlugin {
       joinQuitMessageSuppressor = new JoinQuitMessageSuppressor();
       getServer().getPluginManager().registerEvents(joinQuitMessageSuppressor, this);
       getLogger().info("Naked And Afraid - Message Disabling Enabled.");
-    } else {
-      joinQuitMessageSuppressor = null;
     }
   }
 
@@ -172,20 +164,24 @@ public class NakedAndAfraid extends JavaPlugin {
    * Each world is enabled (true) by default.
    */
   private void setWorldList() {
-    ConfigurationSection configSection = getConfig().getConfigurationSection("enabled-worlds");
+    var configSection = getConfig().getConfigurationSection("enabled-worlds");
+
     if (configSection == null) {
-      return;
+      configSection = getConfig().createSection("enabled-worlds");
     }
 
+    var configWorlds = configSection.getKeys(false);
+
     for (var world : Bukkit.getWorlds()) {
-      if (!configSection.contains(world.getName())) {
-        configSection.set(world.getName(), true);
+      String path = "enabled-worlds." + world.getName();
+      if (!getConfig().contains(path)) {
+        getConfig().set(path, true);
       }
     }
 
-    for (String worldName : configSection.getKeys(false)) {
+    for (String worldName : configWorlds) {
       if (Bukkit.getWorld(worldName) == null) {
-        configSection.set(worldName, null);
+        getConfig().set("enabled-worlds." + worldName, null);
       }
     }
 
