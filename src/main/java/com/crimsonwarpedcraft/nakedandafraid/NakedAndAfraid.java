@@ -5,8 +5,10 @@ import com.crimsonwarpedcraft.nakedandafraid.spawn.SpawnManager;
 import com.crimsonwarpedcraft.nakedandafraid.team.TeamCommands;
 import com.crimsonwarpedcraft.nakedandafraid.team.TeamsManager;
 import com.crimsonwarpedcraft.nakedandafraid.util.TeleportHelper;
+import com.crimsonwarpedcraft.nakedandafraid.util.VersionChecker;
 import io.papermc.lib.PaperLib;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -93,6 +95,7 @@ public class NakedAndAfraid extends JavaPlugin {
       getLogger().warning("ProtocolLib not found or tab hiding disabled.");
     }
 
+    getServer().getPluginManager().registerEvents(new com.crimsonwarpedcraft.nakedandafraid.listeners.VersionNotifyListener(this), this);
 
     logStartupInfo();
   }
@@ -274,11 +277,16 @@ public class NakedAndAfraid extends JavaPlugin {
             return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
           }
           if (args[1].equalsIgnoreCase("create")) {
-            return List.of();
+            return List.of(); // player needs to type the team name
           }
           if (args[1].equalsIgnoreCase("setblock") || args[1].equalsIgnoreCase("block")) {
             return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
           }
+        }
+        if (args.length == 4 && args[1].equalsIgnoreCase("create")) {
+          return ValidTeamColors().stream()
+                  .filter(c -> c.startsWith(args[3].toUpperCase()))
+                  .toList();
         }
         if (args.length == 4) {
           if (args[1].equalsIgnoreCase("block") && args[2].equalsIgnoreCase("selector")) {
@@ -339,7 +347,7 @@ public class NakedAndAfraid extends JavaPlugin {
             "§e/nf spawn list §7- List all spawns",
             "§e/nf spawn tp (spawn-name) (player) §7- Teleport a player to a spawn",
             "§e/nf spawn tpall §7- Teleport all players to their spawns at once",
-            "§e/nf team create (team-name) §7- Define a new team",
+            "§e/nf team create (team-name) (team-color) §7- Define a new team with a specific color",
             "§e/nf team remove (team-name) §7- Delete an existing team",
             "§e/nf team list §7- List all existing teams",
             "§e/nf user (player name) team add (team-name) §7- Add a player to a team",
@@ -365,6 +373,13 @@ public class NakedAndAfraid extends JavaPlugin {
     sender.sendMessage("§7Page §e" + page + " §7of §e" + totalPages);
   }
 
+  private List<String> ValidTeamColors() {
+    return List.of(
+            "RED", "BLUE", "GREEN", "YELLOW", "AQUA",
+            "DARK_PURPLE", "GOLD", "LIGHT_PURPLE", "WHITE"
+    );
+  }
+
   /**
    * Sends formatted plugin startup information to the console.
    */
@@ -386,5 +401,31 @@ public class NakedAndAfraid extends JavaPlugin {
     console.sendMessage(Component.empty());
     console.sendMessage(Component.text("NakedAndAfraid Plugin enabled successfully!").color(NamedTextColor.GREEN));
     console.sendMessage(Component.empty());
+
+    String currentVersion = this.getDescription().getVersion();
+    String latestVersion = VersionChecker.getLatestVersion();
+
+    if (latestVersion != null && !latestVersion.equalsIgnoreCase(currentVersion)) {
+      this.getLogger().warning(
+              Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
+                      .append(Component.text("There is a new Naked And Afraid Plugin version available for download: "
+                                      + latestVersion + " (Current: " + currentVersion + ")")
+                              .color(NamedTextColor.RED))
+                      .toString()
+      );
+
+      console.sendMessage(
+              Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
+                      .append(
+                              Component.text("Download it here: ")
+                                      .color(NamedTextColor.RED)
+                      )
+                      .append(
+                              Component.text("https://modrinth.com/plugin/naked-and-afraid-plugin/versions")
+                                      .color(NamedTextColor.RED)
+                                      .clickEvent(ClickEvent.openUrl("https://modrinth.com/plugin/naked-and-afraid-plugin/versions"))
+                      )
+      );
+    }
   }
 }

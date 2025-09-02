@@ -110,18 +110,25 @@ public class TeamCommands {
     }
 
     private boolean handleTeamCreate(CommandSender sender, String[] args) {
-        if (args.length < 3) {
-            sender.sendMessage(Component.text("Usage: /nf team create <team>").color(NamedTextColor.RED));
+        if (args.length < 4) { // team-name + team-color
+            sender.sendMessage(Component.text("Usage: /nf team create <team-name> <team-color>").color(NamedTextColor.RED));
             return true;
         }
-        String teamName = args[2].toLowerCase();
 
-        NamedTextColor color = pickColorForTeam();
+        String teamName = args[2].toLowerCase();
+        String colorName = args[3].toUpperCase();
+
+        NamedTextColor color = parseColor(colorName);
+        if (color == null) {
+            sender.sendMessage(Component.text("Invalid color. Valid colors: RED, BLUE, GREEN, YELLOW, AQUA, DARK_PURPLE, GOLD, LIGHT_PURPLE, WHITE").color(NamedTextColor.RED));
+            return true;
+        }
 
         if (teamsManager.teamExists(teamName)) {
             sender.sendMessage(Component.text("Team already exists.").color(NamedTextColor.RED));
             return true;
         }
+
         if (!teamsManager.createTeam(teamName, color)) {
             sender.sendMessage(Component.text("Max teams reached!").color(NamedTextColor.RED));
             return true;
@@ -131,20 +138,19 @@ public class TeamCommands {
         return true;
     }
 
-    private NamedTextColor pickColorForTeam() {
-        List<NamedTextColor> colors = List.of(
-                NamedTextColor.RED, NamedTextColor.BLUE, NamedTextColor.GREEN,
-                NamedTextColor.YELLOW, NamedTextColor.AQUA, NamedTextColor.DARK_PURPLE,
-                NamedTextColor.GOLD, NamedTextColor.LIGHT_PURPLE
-        );
-        Set<NamedTextColor> usedColors = new HashSet<>();
-        for (var team : teamsManager.getTeams()) {
-            usedColors.add(team.getColor());
-        }
-        for (NamedTextColor color : colors) {
-            if (!usedColors.contains(color)) return color;
-        }
-        return NamedTextColor.WHITE;
+    private NamedTextColor parseColor(String colorName) {
+        return switch (colorName) {
+            case "RED" -> NamedTextColor.RED;
+            case "GOLD" -> NamedTextColor.GOLD;
+            case "YELLOW" -> NamedTextColor.YELLOW;
+            case "GREEN" -> NamedTextColor.GREEN;
+            case "AQUA" -> NamedTextColor.AQUA;
+            case "BLUE" -> NamedTextColor.BLUE;
+            case "DARK_PURPLE" -> NamedTextColor.DARK_PURPLE;
+            case "LIGHT_PURPLE" -> NamedTextColor.LIGHT_PURPLE;
+            case "WHITE" -> NamedTextColor.WHITE;
+            default -> null;
+        };
     }
 
     private boolean handleTeamList(CommandSender sender) {
@@ -369,12 +375,12 @@ public class TeamCommands {
 
     private String getColorName(NamedTextColor color) {
         if (color.equals(NamedTextColor.RED)) return "RED";
-        if (color.equals(NamedTextColor.BLUE)) return "BLUE";
-        if (color.equals(NamedTextColor.GREEN)) return "GREEN";
-        if (color.equals(NamedTextColor.YELLOW)) return "YELLOW";
-        if (color.equals(NamedTextColor.AQUA)) return "AQUA";
-        if (color.equals(NamedTextColor.DARK_PURPLE)) return "DARK_PURPLE";
         if (color.equals(NamedTextColor.GOLD)) return "GOLD";
+        if (color.equals(NamedTextColor.YELLOW)) return "YELLOW";
+        if (color.equals(NamedTextColor.GREEN)) return "GREEN";
+        if (color.equals(NamedTextColor.AQUA)) return "AQUA";
+        if (color.equals(NamedTextColor.BLUE)) return "BLUE";
+        if (color.equals(NamedTextColor.DARK_PURPLE)) return "DARK_PURPLE";
         if (color.equals(NamedTextColor.LIGHT_PURPLE)) return "LIGHT_PURPLE";
         if (color.equals(NamedTextColor.WHITE)) return "WHITE";
         return "UNKNOWN";
