@@ -171,20 +171,28 @@ public class NakedAndAfraid extends JavaPlugin {
    * Each world is enabled (true) by default.
    */
   private void setWorldList() {
-    // Load the current enabled-worlds from config
-    if (!getConfig().isConfigurationSection("enabled-worlds")) {
-      getConfig().createSection("enabled-worlds");
+    var configSection = getConfig().getConfigurationSection("enabled-worlds");
+
+    if (configSection == null) {
+      configSection = getConfig().createSection("enabled-worlds");
     }
 
+    var configWorlds = configSection.getKeys(false);
+
     for (var world : Bukkit.getWorlds()) {
-      String worldName = world.getName();
-      // Only add worlds that don't already exist in config
-      if (!getConfig().contains("enabled-worlds." + worldName)) {
-        getConfig().set("enabled-worlds." + worldName, true);
+      String path = "enabled-worlds." + world.getName();
+      if (!getConfig().contains(path)) {
+        getConfig().set(path, true);
       }
     }
 
-    saveConfig(); // Save the changes to disk
+    for (String worldName : configWorlds) {
+      if (Bukkit.getWorld(worldName) == null) {
+        getConfig().set("enabled-worlds." + worldName, null);
+      }
+    }
+
+    saveConfig();
   }
 
   /**
