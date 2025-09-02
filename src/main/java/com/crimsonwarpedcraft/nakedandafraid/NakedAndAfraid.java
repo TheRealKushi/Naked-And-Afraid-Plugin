@@ -69,6 +69,11 @@ public class NakedAndAfraid extends JavaPlugin {
 
     // Load default config and initialize listeners
     saveDefaultConfig();
+
+    // Add worlds to config.yml
+    setWorldList();
+
+    // Reloads all plugin listeners
     reloadListeners();
 
     teleportOnCountdownEnd = getConfig().getBoolean("teleport-on-countdown-end", false);
@@ -162,6 +167,27 @@ public class NakedAndAfraid extends JavaPlugin {
   }
 
   /**
+   * Automatically adds all existing worlds to the config under `enabled-worlds` variable if not already present.
+   * Each world is enabled (true) by default.
+   */
+  private void setWorldList() {
+    // Load the current enabled-worlds from config
+    if (!getConfig().isConfigurationSection("enabled-worlds")) {
+      getConfig().createSection("enabled-worlds");
+    }
+
+    for (var world : Bukkit.getWorlds()) {
+      String worldName = world.getName();
+      // Only add worlds that don't already exist in config
+      if (!getConfig().contains("enabled-worlds." + worldName)) {
+        getConfig().set("enabled-worlds." + worldName, true);
+      }
+    }
+
+    saveConfig(); // Save the changes to disk
+  }
+
+  /**
    * Checks if teleport should occur when countdown ends.
    *
    * @return true if teleport on countdown end is enabled, false otherwise.
@@ -209,7 +235,7 @@ public class NakedAndAfraid extends JavaPlugin {
     switch (args[0].toLowerCase()) {
       case "reloadconfig" -> {
         if (!sender.hasPermission("nakedandafraid.reload")) {
-          sender.sendMessage("§cYou don't have permission to do that.");
+          sender.sendMessage("§cYou don't have permission to execute this command.");
           return true;
         }
         reloadConfig();
@@ -217,9 +243,27 @@ public class NakedAndAfraid extends JavaPlugin {
         sender.sendMessage("§aNaked and Afraid config reloaded.");
         return true;
       }
-      case "spawn" -> { return spawnManager.handleCommand(sender, args); }
-      case "team" -> { return teamCommands.handleTeamCommand(sender, args); }
-      case "user" -> { return teamCommands.handleUserCommand(sender, args); }
+      case "spawn" -> {
+        if (!sender.hasPermission("nakedandafraid.spawn")) {
+          sender.sendMessage("§cYou don't have permission to execute this command.");
+          return true;
+        }
+        return spawnManager.handleCommand(sender, args);
+      }
+      case "team" -> {
+        if (!sender.hasPermission("nakedandafraid.team")) {
+          sender.sendMessage("§cYou don't have permission to execute this command.");
+          return true;
+        }
+        return teamCommands.handleTeamCommand(sender, args);
+      }
+      case "user" -> {
+        if (!sender.hasPermission("nakedandafraid.user")) {
+          sender.sendMessage("§cYou don't have permission to execute this command.");
+          return true;
+        }
+        return teamCommands.handleUserCommand(sender, args);
+      }
       default -> sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
     }
     return true;
@@ -248,56 +292,55 @@ public class NakedAndAfraid extends JavaPlugin {
           return List.of("create", "rename", "remove", "list", "tp", "tpall");
         }
         if (args.length == 3) {
-          if (args[1].equalsIgnoreCase("create")) {
-            return List.of();
-          }
+          if (args[1].equalsIgnoreCase("create")) return List.of();
           if (args[1].equalsIgnoreCase("rename") || args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("tp")) {
             return spawnManager.getSpawns().keySet().stream().toList();
           }
         }
         if (args.length == 4) {
-          if (args[1].equalsIgnoreCase("create")) {
-            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
-          }
-          if (args[1].equalsIgnoreCase("rename")) {
-            return List.of();
-          }
-          if (args[1].equalsIgnoreCase("tp")) {
-            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
-          }
+          if (args[1].equalsIgnoreCase("create")) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+          if (args[1].equalsIgnoreCase("rename")) return List.of();
+          if (args[1].equalsIgnoreCase("tp")) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
         }
       }
 
       case "team" -> {
         if (args.length == 2) {
-          return List.of("create", "remove", "list", "block", "setblock");
+          return List.of("create", "remove", "list", "block", "setblock", "meta");
         }
         if (args.length == 3) {
-          if (args[1].equalsIgnoreCase("remove")) {
+          if (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("setblock") || args[1].equalsIgnoreCase("block")) {
             return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
           }
-          if (args[1].equalsIgnoreCase("create")) {
-            return List.of(); // player needs to type the team name
+          if (args[1].equalsIgnoreCase("create") || args[1].equalsIgnoreCase("meta")) {
+            return List.of();
           }
-          if (args[1].equalsIgnoreCase("setblock") || args[1].equalsIgnoreCase("block")) {
-            return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
-          }
-        }
-        if (args.length == 4 && args[1].equalsIgnoreCase("create")) {
-          return ValidTeamColors().stream()
-                  .filter(c -> c.startsWith(args[3].toUpperCase()))
-                  .toList();
         }
         if (args.length == 4) {
+          if (args[1].equalsIgnoreCase("create")) {
+            return ValidTeamColors().stream()
+                    .filter(c -> c.startsWith(args[3].toUpperCase()))
+                    .toList();
+          }
           if (args[1].equalsIgnoreCase("block") && args[2].equalsIgnoreCase("selector")) {
             return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
           }
           if (args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
             return List.of(String.valueOf(player.getLocation().getBlockX()));
           }
+          if (args[1].equalsIgnoreCase("meta") && args[3].equalsIgnoreCase("color")) {
+            return List.of("get", "set");
+          }
         }
-        if (args.length == 5 && args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
-          return List.of(String.valueOf(player.getLocation().getBlockY()));
+        if (args.length == 5) {
+          if (args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
+            return List.of(String.valueOf(player.getLocation().getBlockY()));
+          }
+          if (args[1].equalsIgnoreCase("meta") && args[3].equalsIgnoreCase("color") && args[4].equalsIgnoreCase("set")) {
+            return ValidTeamColors().stream()
+                    .filter(c -> c.startsWith(args[5].toUpperCase()))
+                    .toList();
+          }
         }
         if (args.length == 6 && args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
           return List.of(String.valueOf(player.getLocation().getBlockZ()));
@@ -350,6 +393,8 @@ public class NakedAndAfraid extends JavaPlugin {
             "§e/nf team create (team-name) (team-color) §7- Define a new team with a specific color",
             "§e/nf team remove (team-name) §7- Delete an existing team",
             "§e/nf team list §7- List all existing teams",
+            "§e/nf team (team-name) meta color get §7- Get the current color of a team",
+            "§e/nf team (team-name) meta color set (color) §7- Change the color of an existing team",
             "§e/nf user (player name) team add (team-name) §7- Add a player to a team",
             "§e/nf user (player name) team remove (team-name) §7- Remove a player from a team",
             "§e/nf user (player name) team list §7- List all teams a player is in"

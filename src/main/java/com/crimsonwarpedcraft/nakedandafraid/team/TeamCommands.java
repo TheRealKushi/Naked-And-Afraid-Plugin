@@ -69,6 +69,16 @@ public class TeamCommands {
                 }
                 sender.sendMessage(Component.text("Usage: /nf team <team-name> setblock <x> <y> <z>").color(NamedTextColor.RED));
                 return true;
+            case "meta":
+                if (args.length < 4) {
+                    sender.sendMessage(Component.text("Usage: /nf team meta <team-name> color <get|set> [color]").color(NamedTextColor.RED));
+                    return true;
+                }
+                if (args[3].equalsIgnoreCase("color")) {
+                    return handleTeamMetaColor(sender, args);
+                }
+                sender.sendMessage(Component.text("Unknown meta subcommand.").color(NamedTextColor.RED));
+                return true;
         }
         sender.sendMessage(Component.text("Unknown team subcommand.").color(NamedTextColor.RED));
         return true;
@@ -330,12 +340,12 @@ public class TeamCommands {
 
         String teamName = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "teamSelector"), PersistentDataType.STRING);
         if (teamName == null) {
-            player.sendMessage(Component.text("This selector is invalid (missing team info).").color(NamedTextColor.RED));
+            player.sendMessage(Component.text("This selector is invalid (missing team info)").color(NamedTextColor.RED));
             return;
         }
 
         if (!teamsManager.teamExists(teamName)) {
-            player.sendMessage(Component.text("Team '" + teamName + "' no longer exists.").color(NamedTextColor.RED));
+            player.sendMessage(Component.text("Team '" + teamName + "' no longer exists").color(NamedTextColor.RED));
             return;
         }
 
@@ -344,9 +354,6 @@ public class TeamCommands {
                 block.getX() + ", " + block.getY() + ", " + block.getZ()).color(NamedTextColor.GREEN));
 
         updatePlayerNametagColor(player, teamName);
-
-        // Optionally remove the selector after use by uncommenting the line below
-        // player.getInventory().remove(item);
     }
 
     private void updatePlayerNametagColor(Player player, String teamName) {
@@ -370,7 +377,57 @@ public class TeamCommands {
         }
 
         player.setScoreboard(scoreboard);
-        player.sendMessage(Component.text("Your nametag color is now set to team '" + teamName + "'.").color(NamedTextColor.GREEN));
+        player.sendMessage(Component.text("Nametag color updated for team '" + teamName + "'").color(NamedTextColor.GREEN));
+    }
+
+    private boolean handleTeamMetaColor(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            sender.sendMessage(Component.text("Usage: /nf team meta <team-name> color <get|set> [color]").color(NamedTextColor.RED));
+            return true;
+        }
+
+        String teamName = args[2].toLowerCase();
+        if (!teamsManager.teamExists(teamName)) {
+            sender.sendMessage(Component.text("Team '" + teamName + "' does not exist.").color(NamedTextColor.RED));
+            return true;
+        }
+
+        String action = args[4].toLowerCase();
+        TeamsManager.Team team = teamsManager.getTeam(teamName);
+
+        switch (action) {
+            case "get" -> {
+                sender.sendMessage(Component.text("Team '" + teamName + "' color: " + getColorName(team.getColor())).color(team.getColor()));
+                return true;
+            }
+            case "set" -> {
+                if (args.length < 6) {
+                    sender.sendMessage(Component.text("Usage: /nf team meta <team-name> color set <color>").color(NamedTextColor.RED));
+                    return true;
+                }
+                String newColorName = args[5].toUpperCase();
+                NamedTextColor newColor = parseColor(newColorName);
+                if (newColor == null) {
+                    sender.sendMessage(Component.text("Invalid color. Valid colors: RED, BLUE, GREEN, YELLOW, AQUA, DARK_PURPLE, GOLD, LIGHT_PURPLE, WHITE").color(NamedTextColor.RED));
+                    return true;
+                }
+                team.setColor(newColor);
+                sender.sendMessage(Component.text("Team '" + teamName + "' color updated to " + newColorName).color(newColor));
+
+                // Update nametag colors for all members
+                for (UUID memberUUID : team.getMembers()) {
+                    Player member = Bukkit.getPlayer(memberUUID);
+                    if (member != null && member.isOnline()) {
+                        updatePlayerNametagColor(member, teamName);
+                    }
+                }
+                return true;
+            }
+            default -> {
+                sender.sendMessage(Component.text("Unknown color action. Use get or set.").color(NamedTextColor.RED));
+                return true;
+            }
+        }
     }
 
     private String getColorName(NamedTextColor color) {

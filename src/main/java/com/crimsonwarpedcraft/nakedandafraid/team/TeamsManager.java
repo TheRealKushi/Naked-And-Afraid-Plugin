@@ -211,7 +211,7 @@ public class TeamsManager {
 
     public static class Team {
         private final String name;
-        private final NamedTextColor color;
+        private NamedTextColor color;
         private final Set<UUID> members;
         private Location lodestone;
 
@@ -228,6 +228,10 @@ public class TeamsManager {
 
         public NamedTextColor getColor() {
             return color;
+        }
+
+        public void setColor(NamedTextColor color) {
+            this.color = color;
         }
 
         public Set<UUID> getMembers() {
