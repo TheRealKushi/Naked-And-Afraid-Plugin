@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -171,24 +172,20 @@ public class NakedAndAfraid extends JavaPlugin {
    * Each world is enabled (true) by default.
    */
   private void setWorldList() {
-    var configSection = getConfig().getConfigurationSection("enabled-worlds");
-
+    ConfigurationSection configSection = getConfig().getConfigurationSection("enabled-worlds");
     if (configSection == null) {
-      configSection = getConfig().createSection("enabled-worlds");
+      return;
     }
 
-    var configWorlds = configSection.getKeys(false);
-
     for (var world : Bukkit.getWorlds()) {
-      String path = "enabled-worlds." + world.getName();
-      if (!getConfig().contains(path)) {
-        getConfig().set(path, true);
+      if (!configSection.contains(world.getName())) {
+        configSection.set(world.getName(), true);
       }
     }
 
-    for (String worldName : configWorlds) {
+    for (String worldName : configSection.getKeys(false)) {
       if (Bukkit.getWorld(worldName) == null) {
-        getConfig().set("enabled-worlds." + worldName, null);
+        configSection.set(worldName, null);
       }
     }
 
@@ -246,7 +243,12 @@ public class NakedAndAfraid extends JavaPlugin {
           sender.sendMessage("§cYou don't have permission to execute this command.");
           return true;
         }
+
         reloadConfig();
+        teleportOnCountdownEnd = getConfig().getBoolean("teleport-on-countdown-end", false);
+        multipleSpawnPriority = getConfig().getString("multiple-spawn-priority", "FIRST").toUpperCase();
+        reloadListeners();
+
         spawnManager.loadSpawns();
         sender.sendMessage("§aNaked and Afraid config reloaded.");
         return true;
