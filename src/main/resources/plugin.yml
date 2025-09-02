@@ -16,3 +16,15 @@ permissions:
   nakedandafraid.reload:
     description: Allows for reloading the NakedAndAfraid plugin.
     default: op
+
+  nakedandafraid.spawn:
+    description: Allows using spawn-related commands.
+    default: op
+
+  nakedandafraid.team:
+    description: Allows using team-related commands.
+    default: op
+
+  nakedandafraid.user:
+    description: Allows using user-related commands.
+    default: op
