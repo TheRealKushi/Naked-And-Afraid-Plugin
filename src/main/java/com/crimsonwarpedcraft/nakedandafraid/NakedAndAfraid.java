@@ -14,13 +14,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
+import java.io.*;
+import java.util.*;
 
 /**
  * Main class for the NakedAndAfraid plugin.
@@ -30,7 +30,7 @@ import java.util.List;
  * if ProtocolLib is missing.
  * </p>
  * <p>
- * Configuration options include enabling/disabling chat restriction, tab hiding, armor damage,
+ * Configuration options include enabling/disabling chat, tab, armor damage,
  * join/quit message suppression, teleport behavior, and spawn priority handling.
  * </p>
  */
@@ -67,30 +67,40 @@ public class NakedAndAfraid extends JavaPlugin {
 
   @Override
   public void onEnable() {
+    debugLog("[NakedAndAfraid] Starting plugin initialization");
     PaperLib.suggestPaper(this);
 
     // Load default config and initialize listeners
+    debugLog("[NakedAndAfraid] Loading default config");
     saveDefaultConfig();
 
     // Add worlds to config.yml
+    debugLog("[NakedAndAfraid] Updating enabled-worlds in config");
     setWorldList();
 
     // Reloads all plugin listeners
+    debugLog("[NakedAndAfraid] Reloading listeners");
     reloadListeners();
 
     teleportOnCountdownEnd = getConfig().getBoolean("teleport-on-countdown-end", false);
     multipleSpawnPriority = getConfig().getString("multiple-spawn-priority", "FIRST").toUpperCase();
+    debugLog("[NakedAndAfraid] Loaded config: teleport-on-countdown-end=" + teleportOnCountdownEnd +
+            ", multiple-spawn-priority=" + multipleSpawnPriority);
 
     teamsManager = new TeamsManager(this);
     teamCommands = new TeamCommands(teamsManager, this);
+    debugLog("[NakedAndAfraid] Initialized TeamsManager and TeamCommands");
 
     getServer().getPluginManager().registerEvents(new GlobalDeathSoundListener(this), this);
-    getServer().getPluginManager().registerEvents(new TeamListener(teamsManager, teamCommands), this);
+    getServer().getPluginManager().registerEvents(new TeamListener(this, teamsManager, teamCommands), this);
+    debugLog("[NakedAndAfraid] Registered GlobalDeathSoundListener and TeamListener");
 
     spawnManager = new SpawnManager(this);
     spawnManager.loadSpawns();
+    debugLog("[NakedAndAfraid] Initialized SpawnManager and loaded spawns");
 
     teleportHelper = new TeleportHelper(this);
+    debugLog("[NakedAndAfraid] Initialized TeleportHelper");
 
     // Initialize tab hider if ProtocolLib is present
     if (getConfig().getBoolean("disable-tab", true) &&
@@ -98,42 +108,65 @@ public class NakedAndAfraid extends JavaPlugin {
       tabListClearer = new TabListClearer(this);
       tabListClearer.enable();
       getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+      debugLog("[NakedAndAfraid] Tab hider enabled with ProtocolLib");
     } else {
       getLogger().warning("ProtocolLib not found or tab hiding disabled.");
+      debugLog("[NakedAndAfraid] Tab hider not enabled (ProtocolLib missing or disable-tab=false)");
     }
 
     getServer().getPluginManager().registerEvents(new com.crimsonwarpedcraft.nakedandafraid.listeners.VersionNotifyListener(this), this);
+    debugLog("[NakedAndAfraid] Registered VersionNotifyListener");
 
     logStartupInfo();
+    debugLog("[NakedAndAfraid] Plugin initialization completed");
+  }
+
+  /** Debug logger */
+  public void debugLog(String message) {
+    if (getConfig().getBoolean("debug-mode", false)) {
+      getLogger().info(message);
+    }
   }
 
   /**
    * Reloads all listeners according to the plugin configuration.
    * Handles enabling/disabling chat, tab, armor, and join/quit message features.
    */
+  /**
+   * Reloads all listeners according to the plugin configuration.
+   * Handles enabling/disabling chat, tab, armor, and join/quit message features.
+   */
   public void reloadListeners() {
+    debugLog("[NakedAndAfraid] Starting listener reload");
     if (tabListClearer != null && tabListClearer.isEnabled()) {
       tabListClearer.disable();
+      debugLog("[NakedAndAfraid] Disabled TabListClearer");
       tabListClearer = null;
     }
     if (chatRestrictionListener != null) {
       HandlerList.unregisterAll(chatRestrictionListener);
+      debugLog("[NakedAndAfraid] Unregistered ChatRestrictionListener");
       chatRestrictionListener = null;
     }
     if (armorDamageListener != null) {
+      armorDamageListener.disableAllTasks();
+      debugLog("[NakedAndAfraid] Disabled all tasks for ArmorDamageListener");
       HandlerList.unregisterAll(armorDamageListener);
+      debugLog("[NakedAndAfraid] Unregistered ArmorDamageListener");
       armorDamageListener = null;
     }
     if (joinQuitMessageSuppressor != null) {
       HandlerList.unregisterAll(joinQuitMessageSuppressor);
+      debugLog("[NakedAndAfraid] Unregistered JoinQuitMessageSuppressor");
       joinQuitMessageSuppressor = null;
     }
 
     // Chat restriction
     if (getConfig().getBoolean("disable-chat", true)) {
-      chatRestrictionListener = new ChatRestrictionListener();
+      chatRestrictionListener = new ChatRestrictionListener(this);
       getServer().getPluginManager().registerEvents(chatRestrictionListener, this);
       getLogger().info("Naked And Afraid - Chat Restriction Enabled.");
+      debugLog("[NakedAndAfraid] Enabled ChatRestrictionListener");
     }
 
     // Tab hiding
@@ -142,50 +175,148 @@ public class NakedAndAfraid extends JavaPlugin {
       tabListClearer = new TabListClearer(this);
       tabListClearer.enable();
       getLogger().info("Naked And Afraid - Tab Hider Enabled.");
+      debugLog("[NakedAndAfraid] Enabled TabListClearer");
+
+      // Update for all online players
+      for (Player player : Bukkit.getOnlinePlayers()) {
+        tabListClearer.applyToPlayer(player);
+        debugLog("[NakedAndAfraid] Applied TabListClearer to player " + player.getName());
+      }
     }
 
     // Armor damage
-    if (getConfig().getBoolean("armor-damage.enabled", true)) {
+    boolean armorDamage = getConfig().getBoolean("armor-damage.enabled", true);
+    if (armorDamage) {
       armorDamageListener = new ArmorDamageListener(this);
       getServer().getPluginManager().registerEvents(armorDamageListener, this);
+      armorDamageListener.refreshArmorTasks();
       getLogger().info("Naked And Afraid - Armor Damage Enabled.");
+      debugLog("[NakedAndAfraid] Enabled ArmorDamageListener and refreshed armor tasks");
+    } else {
+      getLogger().info("Naked And Afraid - Armor Damage Disabled.");
+      debugLog("[NakedAndAfraid] ArmorDamageListener not enabled");
     }
 
     // Join/quit message suppression
     if (getConfig().getBoolean("disable-join-quit-messages", true)) {
-      joinQuitMessageSuppressor = new JoinQuitMessageSuppressor();
+      joinQuitMessageSuppressor = new JoinQuitMessageSuppressor(this);
       getServer().getPluginManager().registerEvents(joinQuitMessageSuppressor, this);
       getLogger().info("Naked And Afraid - Message Disabling Enabled.");
+      debugLog("[NakedAndAfraid] Enabled JoinQuitMessageSuppressor");
     }
+    debugLog("[NakedAndAfraid] Listener reload completed");
   }
 
   /**
-   * Automatically adds all existing worlds to the config under `enabled-worlds` variable if not already present.
-   * Each world is enabled (true) by default.
+   * Automatically adds all existing worlds to the config under `enabled-worlds` variable if not already present,
+   * ensuring no duplicate keys are created.
+   * Each new world is enabled (true) by default.
    */
   private void setWorldList() {
-    var configSection = getConfig().getConfigurationSection("enabled-worlds");
-
-    if (configSection == null) {
-      configSection = getConfig().createSection("enabled-worlds");
+    debugLog("[NakedAndAfraid] Starting setWorldList to update enabled-worlds");
+    File configFile = new File(getDataFolder(), "config.yml");
+    if (!configFile.exists()) {
+      debugLog("[NakedAndAfraid] Config file does not exist, skipping setWorldList");
+      return;
     }
 
-    var configWorlds = configSection.getKeys(false);
+    try {
+      List<String> lines = new ArrayList<>();
+      boolean inEnabledWorlds = false;
+      Map<String, Boolean> existingWorlds = new LinkedHashMap<>();
+      List<String> enabledWorldsLines = new ArrayList<>();
 
-    for (var world : Bukkit.getWorlds()) {
-      String path = "enabled-worlds." + world.getName();
-      if (!getConfig().contains(path)) {
-        getConfig().set(path, true);
+      // Read the config file and collect enabled-worlds entries
+      debugLog("[NakedAndAfraid] Reading config file for enabled-worlds");
+      try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          String trimmed = line.trim();
+
+          if (trimmed.startsWith("enabled-worlds:")) {
+            inEnabledWorlds = true;
+            lines.add(line);
+            enabledWorldsLines.add(line);
+            debugLog("[NakedAndAfraid] Found enabled-worlds section");
+            continue;
+          }
+
+          if (inEnabledWorlds && trimmed.matches("^[^\\s].*:$")) {
+            inEnabledWorlds = false;
+            debugLog("[NakedAndAfraid] Exited enabled-worlds section");
+          }
+
+          if (inEnabledWorlds && !trimmed.isEmpty() && !trimmed.startsWith("#")) {
+            enabledWorldsLines.add(line);
+            if (trimmed.contains(":")) {
+              String[] parts = trimmed.split(":", 2);
+              String worldName = parts[0].trim();
+              boolean enabled = parts.length > 1 && parts[1].trim().equalsIgnoreCase("true");
+              existingWorlds.put(worldName, enabled);
+              debugLog("[NakedAndAfraid] Found world " + worldName + " with enabled=" + enabled);
+            }
+          } else {
+            lines.add(line);
+          }
+        }
       }
-    }
 
-    for (String worldName : configWorlds) {
-      if (Bukkit.getWorld(worldName) == null) {
-        getConfig().set("enabled-worlds." + worldName, null);
+      // Get current worlds and check for new ones
+      debugLog("[NakedAndAfraid] Checking for new worlds");
+      boolean modified = false;
+      List<String> newWorldLines = new ArrayList<>();
+      for (var world : Bukkit.getWorlds()) {
+        if (!existingWorlds.containsKey(world.getName())) {
+          newWorldLines.add("  " + world.getName() + ": true");
+          existingWorlds.put(world.getName(), true);
+          modified = true;
+          debugLog("[NakedAndAfraid] Added new world " + world.getName() + " to enabled-worlds");
+        }
       }
-    }
 
-    saveConfig();
+      // If there are duplicates or new worlds, rewrite the enabled-worlds section
+      if (modified || existingWorlds.size() < enabledWorldsLines.size() - 1) {
+        debugLog("[NakedAndAfraid] Rewriting enabled-worlds section (modified=" + modified +
+                ", duplicates detected=" + (existingWorlds.size() < enabledWorldsLines.size() - 1) + ")");
+        List<String> updatedLines = new ArrayList<>();
+        boolean inEnabledWorldsSection = false;
+
+        for (String line : lines) {
+          String trimmed = line.trim();
+          if (trimmed.startsWith("enabled-worlds:")) {
+            inEnabledWorldsSection = true;
+            updatedLines.add(line);
+            for (Map.Entry<String, Boolean> entry : existingWorlds.entrySet()) {
+              updatedLines.add("  " + entry.getKey() + ": " + entry.getValue());
+            }
+            debugLog("[NakedAndAfraid] Wrote deduplicated enabled-worlds section");
+            continue;
+          }
+          if (inEnabledWorldsSection && trimmed.matches("^[^\\s].*:$")) {
+            inEnabledWorldsSection = false;
+          }
+          if (!inEnabledWorldsSection) {
+            updatedLines.add(line);
+          }
+        }
+
+        // Write the updated config file
+        debugLog("[NakedAndAfraid] Writing updated config file");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(configFile))) {
+          for (String l : updatedLines) {
+            writer.write(l);
+            writer.newLine();
+          }
+        }
+        debugLog("[NakedAndAfraid] Enabled worlds updated, duplicate keys were removed");
+      } else {
+        debugLog("[NakedAndAfraid] No changes needed for enabled-worlds section");
+      }
+
+    } catch (IOException e) {
+      getLogger().severe("Failed to update enabled-worlds: " + e.getMessage());
+      debugLog("[NakedAndAfraid] Failed to update enabled-worlds: " + e.getMessage());
+    }
   }
 
   /**
@@ -215,8 +346,10 @@ public class NakedAndAfraid extends JavaPlugin {
                            final @NotNull Command command,
                            final @NotNull String label,
                            final String @NotNull [] args) {
+    debugLog("[NakedAndAfraid] Processing command: " + label + " " + String.join(" ", args));
 
     if (!(label.equalsIgnoreCase("nf") || label.equalsIgnoreCase("nakedafraid"))) {
+      debugLog("[NakedAndAfraid] Invalid command label: " + label);
       return false;
     }
 
@@ -225,11 +358,14 @@ public class NakedAndAfraid extends JavaPlugin {
       if (args.length >= 2) {
         try {
           page = Integer.parseInt(args[1]);
+          debugLog("[NakedAndAfraid] Parsed help page number: " + page);
         } catch (NumberFormatException ignored) {
           sender.sendMessage("§cInvalid help page number. Showing page 1.");
+          debugLog("[NakedAndAfraid] Invalid help page number: " + args[1]);
         }
       }
       sendHelpMessage(sender, page);
+      debugLog("[NakedAndAfraid] Sent help message to " + sender.getName() + " for page " + page);
       return true;
     }
 
@@ -237,42 +373,64 @@ public class NakedAndAfraid extends JavaPlugin {
       case "reloadconfig" -> {
         if (!sender.hasPermission("nakedandafraid.reload")) {
           sender.sendMessage("§cYou don't have permission to execute this command.");
+          debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for reloadconfig");
           return true;
         }
 
+        debugLog("[NakedAndAfraid] Reloading config for " + sender.getName());
         reloadConfig();
         teleportOnCountdownEnd = getConfig().getBoolean("teleport-on-countdown-end", false);
         multipleSpawnPriority = getConfig().getString("multiple-spawn-priority", "FIRST").toUpperCase();
+        debugLog("[NakedAndAfraid] Reloaded config: teleport-on-countdown-end=" + teleportOnCountdownEnd +
+                ", multiple-spawn-priority=" + multipleSpawnPriority);
         reloadListeners();
+        if (armorDamageListener != null) {
+          armorDamageListener.refreshArmorTasks();
+          debugLog("[NakedAndAfraid] Refreshed armor tasks after reload");
+        }
 
         spawnManager.loadSpawns();
+        debugLog("[NakedAndAfraid] Reloaded spawns");
         sender.sendMessage("§aNaked and Afraid config reloaded.");
+        debugLog("[NakedAndAfraid] Sent config reload confirmation to " + sender.getName());
         return true;
       }
       case "spawn" -> {
         if (!sender.hasPermission("nakedandafraid.spawn")) {
           sender.sendMessage("§cYou don't have permission to execute this command.");
+          debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for spawn command");
           return true;
         }
-        return spawnManager.handleCommand(sender, args);
+        boolean result = spawnManager.handleCommand(sender, args);
+        debugLog("[NakedAndAfraid] Spawn command result for " + sender.getName() + ": " + result);
+        return result;
       }
       case "team" -> {
         if (!sender.hasPermission("nakedandafraid.team")) {
           sender.sendMessage("§cYou don't have permission to execute this command.");
+          debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for team command");
           return true;
         }
-        return teamCommands.handleTeamCommand(sender, args);
+        boolean result = teamCommands.handleTeamCommand(sender, args);
+        debugLog("[NakedAndAfraid] Team command result for " + sender.getName() + ": " + result);
+        return result;
       }
       case "user" -> {
         if (!sender.hasPermission("nakedandafraid.user")) {
           sender.sendMessage("§cYou don't have permission to execute this command.");
+          debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for user command");
           return true;
         }
-        return teamCommands.handleUserCommand(sender, args);
+        boolean result = teamCommands.handleUserCommand(sender, args);
+        debugLog("[NakedAndAfraid] User command result for " + sender.getName() + ": " + result);
+        return result;
       }
-      default -> sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
+      default -> {
+        sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
+        debugLog("[NakedAndAfraid] Unknown subcommand from " + sender.getName() + ": " + args[0]);
+        return true;
+      }
     }
-    return true;
   }
 
   /**
@@ -283,90 +441,134 @@ public class NakedAndAfraid extends JavaPlugin {
                                     @NotNull Command command,
                                     @NotNull String alias,
                                     String @NotNull [] args) {
+    debugLog("[NakedAndAfraid] Processing tab completion for " + sender.getName() +
+            ": " + command.getName() + " " + String.join(" ", args));
 
     if (!(command.getName().equalsIgnoreCase("nf") || command.getName().equalsIgnoreCase("nakedafraid"))) {
+      debugLog("[NakedAndAfraid] Invalid command for tab completion: " + command.getName());
       return null;
     }
 
     if (args.length == 1) {
-      return List.of("help", "reloadconfig", "spawn", "team", "user");
+      List<String> completions = List.of("help", "reloadconfig", "spawn", "team", "user");
+      debugLog("[NakedAndAfraid] Tab completion for first arg: " + completions);
+      return completions;
     }
 
     switch (args[0].toLowerCase()) {
       case "spawn" -> {
         if (args.length == 2) {
-          return List.of("create", "rename", "remove", "list", "tp", "tpall");
+          List<String> completions = List.of("create", "rename", "remove", "list", "tp", "tpall");
+          debugLog("[NakedAndAfraid] Tab completion for spawn subcommand: " + completions);
+          return completions;
         }
         if (args.length == 3) {
-          if (args[1].equalsIgnoreCase("create")) return List.of();
+          if (args[1].equalsIgnoreCase("create")) {
+            debugLog("[NakedAndAfraid] Tab completion for spawn create: empty list");
+            return List.of();
+          }
           if (args[1].equalsIgnoreCase("rename") || args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("tp")) {
-            return spawnManager.getSpawns().keySet().stream().toList();
+            List<String> completions = spawnManager.getSpawns().keySet().stream().toList();
+            debugLog("[NakedAndAfraid] Tab completion for spawn rename/remove/tp: " + completions);
+            return completions;
           }
         }
         if (args.length == 4) {
-          if (args[1].equalsIgnoreCase("create")) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
-          if (args[1].equalsIgnoreCase("rename")) return List.of();
-          if (args[1].equalsIgnoreCase("tp")) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+          if (args[1].equalsIgnoreCase("create") || args[1].equalsIgnoreCase("tp")) {
+            List<String> completions = Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            debugLog("[NakedAndAfraid] Tab completion for spawn create/tp players: " + completions);
+            return completions;
+          }
+          if (args[1].equalsIgnoreCase("rename")) {
+            debugLog("[NakedAndAfraid] Tab completion for spawn rename: empty list");
+            return List.of();
+          }
         }
       }
 
       case "team" -> {
         if (args.length == 2) {
-          return List.of("create", "remove", "list", "block", "setblock", "meta");
+          List<String> completions = List.of("create", "remove", "list", "block", "setblock", "meta");
+          debugLog("[NakedAndAfraid] Tab completion for team subcommand: " + completions);
+          return completions;
         }
         if (args.length == 3) {
           if (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("setblock") || args[1].equalsIgnoreCase("block")) {
-            return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+            List<String> completions = teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+            debugLog("[NakedAndAfraid] Tab completion for team remove/setblock/block: " + completions);
+            return completions;
           }
           if (args[1].equalsIgnoreCase("create") || args[1].equalsIgnoreCase("meta")) {
+            debugLog("[NakedAndAfraid] Tab completion for team create/meta: empty list");
             return List.of();
           }
         }
         if (args.length == 4) {
           if (args[1].equalsIgnoreCase("create")) {
-            return ValidTeamColors().stream()
-                    .filter(c -> c.startsWith(args[3].toUpperCase()))
+            List<String> completions = ValidTeamColors().stream()
+                    .filter(c -> c.startsWith(args[2].toUpperCase()))
                     .toList();
+            debugLog("[NakedAndAfraid] Tab completion for team create colors: " + completions);
+            return completions;
           }
           if (args[1].equalsIgnoreCase("block") && args[2].equalsIgnoreCase("selector")) {
-            return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            List<String> completions = Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            debugLog("[NakedAndAfraid] Tab completion for team block selector players: " + completions);
+            return completions;
           }
           if (args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
-            return List.of(String.valueOf(player.getLocation().getBlockX()));
+            List<String> completions = List.of(String.valueOf(player.getLocation().getBlockX()));
+            debugLog("[NakedAndAfraid] Tab completion for team setblock x: " + completions);
+            return completions;
           }
-          if (args[1].equalsIgnoreCase("meta") && args[3].equalsIgnoreCase("color")) {
-            return List.of("get", "set");
+          if (args[1].equalsIgnoreCase("meta") && args[2].equalsIgnoreCase("color")) {
+            List<String> completions = List.of("get", "set");
+            debugLog("[NakedAndAfraid] Tab completion for team meta color: " + completions);
+            return completions;
           }
         }
         if (args.length == 5) {
           if (args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
-            return List.of(String.valueOf(player.getLocation().getBlockY()));
+            List<String> completions = List.of(String.valueOf(player.getLocation().getBlockY()));
+            debugLog("[NakedAndAfraid] Tab completion for team setblock y: " + completions);
+            return completions;
           }
-          if (args[1].equalsIgnoreCase("meta") && args[3].equalsIgnoreCase("color") && args[4].equalsIgnoreCase("set")) {
-            return ValidTeamColors().stream()
-                    .filter(c -> c.startsWith(args[5].toUpperCase()))
+          if (args[1].equalsIgnoreCase("meta") && args[2].equalsIgnoreCase("color") && args[3].equalsIgnoreCase("set")) {
+            List<String> completions = ValidTeamColors().stream()
+                    .filter(c -> c.startsWith(args[4].toUpperCase()))
                     .toList();
+            debugLog("[NakedAndAfraid] Tab completion for team meta color set: " + completions);
+            return completions;
           }
         }
         if (args.length == 6 && args[1].equalsIgnoreCase("setblock") && sender instanceof Player player) {
-          return List.of(String.valueOf(player.getLocation().getBlockZ()));
+          List<String> completions = List.of(String.valueOf(player.getLocation().getBlockZ()));
+          debugLog("[NakedAndAfraid] Tab completion for team setblock z: " + completions);
+          return completions;
         }
       }
 
       case "user" -> {
         if (args.length == 2) {
-          return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+          List<String> completions = Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+          debugLog("[NakedAndAfraid] Tab completion for user players: " + completions);
+          return completions;
         }
         if (args.length == 3 && args[2].equalsIgnoreCase("team")) {
-          return List.of("add", "remove", "list");
+          List<String> completions = List.of("add", "remove", "list");
+          debugLog("[NakedAndAfraid] Tab completion for user team subcommand: " + completions);
+          return completions;
         }
         if (args.length == 4 && args[2].equalsIgnoreCase("team") &&
                 (args[3].equalsIgnoreCase("add") || args[3].equalsIgnoreCase("remove"))) {
-          return teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+          List<String> completions = teamsManager.getTeams().stream().map(TeamsManager.Team::getName).toList();
+          debugLog("[NakedAndAfraid] Tab completion for user team add/remove: " + completions);
+          return completions;
         }
       }
     }
 
+    debugLog("[NakedAndAfraid] Tab completion returned empty list");
     return List.of();
   }
 
@@ -377,6 +579,7 @@ public class NakedAndAfraid extends JavaPlugin {
    */
   @NotNull
   public TeleportHelper getTeleportHelper() {
+    debugLog("[NakedAndAfraid] Retrieved TeleportHelper instance");
     return teleportHelper;
   }
 
@@ -387,6 +590,7 @@ public class NakedAndAfraid extends JavaPlugin {
    * @param page   Page number to display (1-based).
    */
   private void sendHelpMessage(@NotNull CommandSender sender, int page) {
+    debugLog("[NakedAndAfraid] Preparing help message for " + sender.getName() + ", page " + page);
     List<String> helpLines = List.of(
             "§e/nf help §7- Show this help message",
             "§e/nf §7- Alias for /nf help",
@@ -411,6 +615,7 @@ public class NakedAndAfraid extends JavaPlugin {
 
     if (page < 1) page = 1;
     if (page > totalPages) page = totalPages;
+    debugLog("[NakedAndAfraid] Adjusted help page to " + page + " (total pages: " + totalPages + ")");
 
     sender.sendMessage("§6==== NakedAndAfraid Help ====");
 
@@ -422,9 +627,11 @@ public class NakedAndAfraid extends JavaPlugin {
     }
 
     sender.sendMessage("§7Page §e" + page + " §7of §e" + totalPages);
+    debugLog("[NakedAndAfraid] Sent help page " + page + " to " + sender.getName());
   }
 
   private List<String> ValidTeamColors() {
+    debugLog("[NakedAndAfraid] Retrieving valid team colors");
     return List.of(
             "RED", "BLUE", "GREEN", "YELLOW", "AQUA",
             "DARK_PURPLE", "GOLD", "LIGHT_PURPLE", "WHITE"
@@ -435,6 +642,7 @@ public class NakedAndAfraid extends JavaPlugin {
    * Sends formatted plugin startup information to the console.
    */
   private void logStartupInfo() {
+    debugLog("[NakedAndAfraid] Sending startup information to console");
     ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
 
     console.sendMessage(" ");
@@ -454,9 +662,11 @@ public class NakedAndAfraid extends JavaPlugin {
     console.sendMessage(Component.empty());
 
     String currentVersion = this.getDescription().getVersion();
-    String latestVersion = VersionChecker.getLatestVersion();
+    debugLog("[NakedAndAfraid] Checking version: current=" + currentVersion);
+    VersionChecker versionChecker = new VersionChecker(this);
+    String latestVersion = versionChecker.getLatestVersion();
 
-    if (latestVersion != null && !latestVersion.equalsIgnoreCase(currentVersion)) {
+    if (latestVersion != null && versionChecker.isOutdated(currentVersion)) {
       this.getLogger().warning(
               Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
                       .append(Component.text("There is a new Naked And Afraid Plugin version available for download: "
@@ -477,6 +687,9 @@ public class NakedAndAfraid extends JavaPlugin {
                                       .clickEvent(ClickEvent.openUrl("https://modrinth.com/plugin/naked-and-afraid-plugin/versions"))
                       )
       );
+      debugLog("[NakedAndAfraid] Notified console of outdated version: " + latestVersion);
+    } else {
+      debugLog("[NakedAndAfraid] Version is up to date or no latest version available");
     }
   }
 }

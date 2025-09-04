@@ -1,6 +1,10 @@
 package com.crimsonwarpedcraft.nakedandafraid.listeners;
 
+import com.crimsonwarpedcraft.nakedandafraid.NakedAndAfraid;
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -12,106 +16,140 @@ import java.util.HashMap;
 import java.util.UUID;
 
 /**
- * A listener that applies periodic damage to players wearing armor, based on configuration settings.
+ * A listener that applies periodic damage to players wearing armor, with full support for dynamic
+ * enabling/disabling through config reloads.
  */
 public class ArmorDamageListener implements Listener {
-    private final JavaPlugin plugin;
-    private final HashMap<UUID, BukkitRunnable> damageTasks;
-    private final double damageAmount;
-    private final long damageIntervalTicks;
 
-    /**
-     * Constructs an ArmorDamageListener with configuration values from the plugin's config file.
-     *
-     * @param plugin the JavaPlugin instance to access configuration and scheduling
-     */
-    public ArmorDamageListener(JavaPlugin plugin) {
+    private final NakedAndAfraid plugin;
+
+    private final HashMap<UUID, BukkitRunnable> damageTasks = new HashMap<>();
+    private double damageAmount;
+    private long damageIntervalTicks;
+    private boolean armorEnabled;
+
+    public ArmorDamageListener(NakedAndAfraid plugin) {
         this.plugin = plugin;
-        this.damageTasks = new HashMap<>();
+        loadConfigValues();
+    }
+
+    /** Load configuration values (damage amount, interval, enabled) from plugin config */
+    private void loadConfigValues() {
+        this.armorEnabled = plugin.getConfig().getBoolean("armor-damage.enabled", true);
         this.damageAmount = plugin.getConfig().getDouble("armor-damage.damage-amount", 1.0);
         this.damageIntervalTicks = plugin.getConfig().getLong("armor-damage.damage-interval-ticks", 20L);
     }
 
-    /**
-     * Logs a debug message if debug mode is enabled in the plugin's configuration.
-     *
-     * @param message the debug message to log
-     */
-    private void debugLog(String message) {
-        if (plugin.getConfig().getBoolean("debug-mode", false)) {
-            plugin.getLogger().info(message);
+    /** Refresh tasks for all online players according to current config */
+    public void refreshArmorTasks() {
+        loadConfigValues();
+        plugin.debugLog("Refreshing armor tasks, armorEnabled: " + armorEnabled);
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID uuid = player.getUniqueId();
+            boolean hasArmor = hasAnyArmor(player);
+            plugin.debugLog("Checking player " + player.getName() + ", hasArmor: " + hasArmor);
+
+            if (!armorEnabled || !hasArmor) {
+                if (damageTasks.containsKey(uuid)) {
+                    cancelDamageTask(player);
+                }
+            } else if (hasArmor && armorEnabled && !damageTasks.containsKey(uuid)) {
+                plugin.debugLog("Starting armor damage task for player " + player.getName());
+                startDamageTask(player);
+            }
         }
     }
 
-    /**
-     * Handles armor change events, starting or stopping damage tasks based on whether the player
-     * is wearing armor.
-     *
-     * @param event the PlayerArmorChangeEvent triggered when a player's armor changes
-     */
     @EventHandler
     public void onPlayerArmorChange(PlayerArmorChangeEvent event) {
+        plugin.debugLog("Armor change event fired for player " + event.getPlayer().getName() +
+                ", New slot: " + event.getSlotType() +
+                ", New item: " + event.getNewItem().getType() +
+                ", Old item: " + event.getOldItem().getType());
+        if (!armorEnabled) return;
+
         Player player = event.getPlayer();
-        debugLog("Armor changed for player " + player.getName());
+        UUID uuid = player.getUniqueId();
 
         if (hasAnyArmor(player)) {
-            debugLog("Player " + player.getName() + " is wearing armor. Starting damage task.");
-            if (!damageTasks.containsKey(player.getUniqueId())) {
+            if (!damageTasks.containsKey(uuid)) {
+                plugin.debugLog("Starting armor damage task for player " + player.getName());
                 startDamageTask(player);
             }
         } else {
-            debugLog("Player " + player.getName() + " has no armor. Cancelling damage task.");
-            cancelDamageTask(player);
+            if (damageTasks.containsKey(uuid)) {
+                plugin.debugLog("Cancelling armor damage task for player " + player.getName());
+                cancelDamageTask(player);
+            }
         }
     }
 
-    /**
-     * Checks if the player is wearing any non-empty armor pieces.
-     *
-     * @param player the player to check
-     * @return true if the player has at least one armor piece equipped, false otherwise
-     */
+    /** Returns true if player has at least one armor piece */
     private boolean hasAnyArmor(Player player) {
-        for (ItemStack armorPiece : player.getInventory().getArmorContents()) {
-            if (armorPiece != null && !armorPiece.getType().isAir()) {
+        ItemStack[] armorContents = player.getInventory().getArmorContents();
+        if (armorContents == null) return false;
+        for (ItemStack armor : armorContents) {
+            if (armor != null && armor.getType() != Material.AIR) {
+                plugin.debugLog("Found armor: " + armor.getType() + " on player " + player.getName());
                 return true;
             }
         }
+        plugin.debugLog("No armor found on player " + player.getName());
         return false;
     }
 
-    /**
-     * Starts a repeating task to periodically damage the player while they wear armor.
-     *
-     * @param player the player to apply damage to
-     */
+    /** Start repeating task to damage player */
     private void startDamageTask(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (damageTasks.containsKey(uuid)) {
+            plugin.debugLog("Task already exists for player " + player.getName() + ", cancelling old task");
+            cancelDamageTask(player);
+        }
+
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
-                if (!player.isOnline() || player.getGameMode().name().equalsIgnoreCase("CREATIVE")) {
+                if (!player.isOnline() || player.isDead() || player.getGameMode() == GameMode.CREATIVE || !armorEnabled) {
                     cancel();
                     damageTasks.remove(player.getUniqueId());
+                    plugin.debugLog("Task auto-cancelled for player " + player.getName() + ", reason: offline/dead/creative/disabled");
                     return;
                 }
-                debugLog("Applying scheduled damage to player " + player.getName());
-                double damageInHP = damageAmount * 2;
+                if (!hasAnyArmor(player)) {
+                    cancel();
+                    damageTasks.remove(player.getUniqueId());
+                    plugin.debugLog("Task auto-cancelled for player " + player.getName() + ", reason: no armor");
+                    return;
+                }
+
+                double damageInHP = damageAmount * 2; // convert to HP
                 player.damage(damageInHP);
+                plugin.debugLog("Applied armor damage to player " + player.getName());
             }
         };
         task.runTaskTimer(plugin, 0L, damageIntervalTicks);
-        damageTasks.put(player.getUniqueId(), task);
+        damageTasks.put(uuid, task);
+        plugin.debugLog("Started new armor damage task for player " + player.getName());
     }
 
-    /**
-     * Cancels the damage task for a player, if it exists.
-     *
-     * @param player the player whose damage task should be cancelled
-     */
+    /** Cancel a player's damage task if it exists */
     private void cancelDamageTask(Player player) {
-        BukkitRunnable task = damageTasks.remove(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        BukkitRunnable task = damageTasks.remove(uuid);
         if (task != null) {
             task.cancel();
+            plugin.debugLog("Cancelled armor damage task for player " + player.getName());
+        } else {
+            plugin.debugLog("No active damage task found for player " + player.getName());
         }
+    }
+
+    /** Cancel all running tasks (plugin disable, etc) */
+    public void disableAllTasks() {
+        for (BukkitRunnable task : damageTasks.values()) {
+            task.cancel();
+        }
+        damageTasks.clear();
     }
 }

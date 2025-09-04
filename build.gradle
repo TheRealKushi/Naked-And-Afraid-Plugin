@@ -85,6 +85,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
     server "io.papermc.paper:paper:1.21.4-R0.1-SNAPSHOT"
+    implementation 'org.snakeyaml:snakeyaml-engine:2.8'
 }
 
 test {
@@ -177,7 +178,7 @@ tasks.register('setupServer') {
     doLast {
         file("$testServerDir/eula.txt").text = "eula=true"
 
-        def versionedPluginName = "NakedAndAfraid-1.1.3d.jar"
+        def versionedPluginName = "NakedAndAfraid-1.1.4a.jar"
         copy {
             from shadowJar.archiveFile
             into "$testServerDir/plugins"

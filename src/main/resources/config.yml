@@ -21,13 +21,16 @@
 ############################################################
 
 # A toggle to either enable or disable the chat during gameplay, only allowing OPs to chat.
-disable-chat: true
+disable-chat: false
 
 # A toggle to either enable or disable the tab list for all players.
 disable-tab: true
 
 # A toggle to either enable or disable the player join and quit messages.
 disable-join-quit-messages: true
+
+# A toggle to either enable or disable the global death sound, that plays for all online players.
+death-sound: true
 
 armor-damage:
   # A toggle to either enable or disable the function that deals damage when players wear an armor piece.
@@ -37,6 +40,9 @@ armor-damage:
   damage-amount: 1.0
   # Value that determines the interval of ticks (1 second = 20 ticks) that the plugin will deal damage to players.
   damage-interval-ticks: 20
+
+# Field that contains a list of all existing worlds (gets updated on server startup), where the plugin can be disabled in certain worlds.
+enabled-worlds:
 
 # Toggles the debug mode, which provides useful info that can be important for troubleshooting errors.
 debug-mode: false
@@ -75,14 +81,5 @@ multiple-spawn-priority: FIRST
 max-teams: 5
 # The block that is used as a Team's Block, and where players have to click to receive their colored nametag.
 team-block: LODESTONE
-
-############################################################
-# +------------------------------------------------------+ #
-# |              Naked And Afraid (Worlds)               | #
-# +------------------------------------------------------+ #
-############################################################
-
-# Field that contains a list of all existing worlds (gets updated on server startup), where the plugin can be disabled in certain worlds.
-enabled-worlds:
 
 # End of config

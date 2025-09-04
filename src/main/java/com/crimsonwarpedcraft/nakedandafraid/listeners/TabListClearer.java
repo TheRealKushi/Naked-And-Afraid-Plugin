@@ -5,6 +5,7 @@ import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.PacketType;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class TabListClearer {
@@ -32,6 +33,13 @@ public class TabListClearer {
 
         protocolManager.addPacketListener(packetAdapter);
         enabled = true;
+    }
+
+    /** Applies tablist hiding function to a specific player */
+    public void applyToPlayer(Player player) {
+        if (!enabled) return;
+
+        protocolManager.sendServerPacket(player, protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO));
     }
 
     /** Disables tablist hiding */
