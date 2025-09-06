@@ -1,9 +1,7 @@
 package com.crimsonwarpedcraft.nakedandafraid.util;
 
 import com.crimsonwarpedcraft.nakedandafraid.NakedAndAfraid;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -16,6 +14,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 public class TeleportHelper implements Listener {
@@ -44,6 +43,16 @@ public class TeleportHelper implements Listener {
             plugin.debugLog("[TeleportHelper] Failed to parse Bukkit version: " + version);
             return false;
         }
+    }
+
+
+    public static Sound getSound(String keyName) {
+        NamespacedKey key = NamespacedKey.minecraft(keyName.toLowerCase(Locale.ROOT));
+        Sound sound = Registry.SOUND_EVENT.get(key);
+        if (sound == null) {
+            throw new IllegalArgumentException("No sound found for key: " + keyName);
+        }
+        return sound;
     }
 
     /**
@@ -143,7 +152,7 @@ public class TeleportHelper implements Listener {
                         }
                         plugin.debugLog("[TeleportHelper] Teleported " + player.getName() + " to " + formatLocation(target));
                     }
-                    Sound plingSound = isPre113() ? Sound.valueOf("NOTE_PLING") : Sound.BLOCK_NOTE_BLOCK_PLING;
+                    Sound plingSound = isPre113() ? getSound("note.pling") : Sound.BLOCK_NOTE_BLOCK_PLING;
                     player.playSound(player.getLocation(), plingSound, 1, 1);
                     plugin.debugLog("[TeleportHelper] Played pling sound (" + plingSound + ") for " + player.getName());
                     this.cancel();
@@ -154,7 +163,7 @@ public class TeleportHelper implements Listener {
                 String tickMessage = messageTemplate.replace("{time}", String.valueOf(timeLeft));
                 bossBar.setTitle(tickMessage);
                 bossBar.setProgress((double) timeLeft / duration);
-                Sound bellSound = isPre113() ? Sound.valueOf("NOTE_BELL") : Sound.BLOCK_NOTE_BLOCK_BELL;
+                Sound bellSound = isPre113() ? getSound("note.bell") : Sound.BLOCK_NOTE_BLOCK_BELL;
                 player.playSound(player.getLocation(), bellSound, 1, 1);
                 plugin.debugLog("[TeleportHelper] Updated boss bar for " + player.getName() +
                         ": timeLeft=" + timeLeft + ", progress=" + ((double) timeLeft / duration) +

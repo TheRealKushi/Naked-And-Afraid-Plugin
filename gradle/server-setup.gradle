@@ -1,7 +1,7 @@
 // server-setup.gradle
 def testServerDir = file("$buildDir/test-server")
-def paperVersion = '1.21.4'
-def paperBuild = '232'
+def paperVersion = '1.21.8'
+def paperBuild = '58'
 
 tasks.register('downloadPaperServer') {
     doLast {
@@ -9,7 +9,7 @@ tasks.register('downloadPaperServer') {
         def serverJar = new File(testServerDir, "paper.jar")
         if (!serverJar.exists()) {
             println "Downloading Paper $paperVersion build $paperBuild..."
-            new URL("https://fill-data.papermc.io/v1/objects/5ee4f542f628a14c644410b08c94ea42e772ef4d29fe92973636b6813d4eaffc/paper-1.21.4-232.jar").withInputStream { i ->
+            new URL("https://fill-data.papermc.io/v1/objects/d2f29b6d3c945479de8271ea56e8f7935fceec021edaafcbbaf2a8c09f4a5d67/paper-1.21.8-58.jar").withInputStream { i ->
                 serverJar.withOutputStream { it << i }
             }
         }
@@ -35,11 +35,8 @@ tasks.register('setupServer') {
     }
 }
 
-tasks.register('runServer', JavaExec) {
+tasks.register('runServer', Exec) {
     dependsOn setupServer
     workingDir testServerDir
-    mainClass.set('io.papermc.paperclip.Main')
-    classpath = files("$testServerDir/paper.jar")
-    standardInput = System.in
-    jvmArgs = ['-Xmx4G', '-Dpaper.debug=true']
+    commandLine 'java', '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
 }

@@ -2,14 +2,11 @@ package com.crimsonwarpedcraft.nakedandafraid.listeners;
 
 import com.crimsonwarpedcraft.nakedandafraid.NakedAndAfraid;
 import com.crimsonwarpedcraft.nakedandafraid.util.VersionChecker;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.entity.Player;
 
 public class VersionNotifyListener implements Listener {
 
@@ -20,11 +17,6 @@ public class VersionNotifyListener implements Listener {
         plugin.debugLog("[VersionNotifyListener] Initialized VersionNotifyListener for Bukkit version " + Bukkit.getBukkitVersion());
     }
 
-    /**
-     * Checks if the server supports the Adventure API (Minecraft 1.19+).
-     *
-     * @return true if the server version is 1.19 or higher, false otherwise.
-     */
     private boolean isAdventureSupported() {
         String version = Bukkit.getBukkitVersion().split("-")[0];
         try {
@@ -37,29 +29,8 @@ public class VersionNotifyListener implements Listener {
         }
     }
 
-    /**
-     * Sends a message to the player, using Adventure API for 1.19+ or legacy chat for 1.12–1.18.2.
-     *
-     * @param player  The player to send the message to.
-     * @param message The message content.
-     * @param isUpdateMessage Whether this is the update notification (affects clickable URL for 1.19+).
-     */
-    private void sendMessage(Player player, String message, boolean isUpdateMessage) {
-        if (isAdventureSupported()) {
-            Component component = Component.text(message).color(NamedTextColor.GOLD);
-            if (isUpdateMessage) {
-                component = Component.text("Download it here: ")
-                        .append(Component.text("https://modrinth.com/plugin/naked-and-afraid-plugin/versions")
-                                .color(NamedTextColor.GOLD)
-                                .clickEvent(ClickEvent.openUrl("https://modrinth.com/plugin/naked-and-afraid-plugin/versions")));
-            }
-            player.sendMessage(component);
-        } else {
-            player.sendMessage("§6" + message);
-            if (isUpdateMessage) {
-                player.sendMessage("§6Download it at: https://modrinth.com/plugin/naked-and-afraid-plugin/versions");
-            }
-        }
+    private void sendOutdatedMessage(Player player, String currentVersion, String latestVersion) {
+        com.crimsonwarpedcraft.nakedandafraid.util.MessageSender.sendOutdated(player, currentVersion, latestVersion);
     }
 
     @EventHandler
@@ -79,8 +50,7 @@ public class VersionNotifyListener implements Listener {
 
         if (versionChecker.isOutdated(currentVersion)) {
             plugin.debugLog("[VersionNotifyListener] Notifying " + player.getName() + " of outdated version");
-            sendMessage(player, "[NakedAndAfraid] You're using Version " + currentVersion +
-                    ", however, Version " + latestVersion + " is available.", true);
+            sendOutdatedMessage(player, currentVersion, latestVersion);
             plugin.debugLog("[VersionNotifyListener] Sent update notification to " + player.getName());
         } else {
             plugin.debugLog("[VersionNotifyListener] Version is up to date or no latest version available for " + player.getName());

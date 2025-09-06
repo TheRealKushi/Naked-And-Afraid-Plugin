@@ -10,6 +10,7 @@ import io.papermc.lib.PaperLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -742,13 +743,13 @@ public class NakedAndAfraid extends JavaPlugin {
 
     if (latestVersion != null && versionChecker.isOutdated(currentVersion)) {
       if (isAdventure) {
-        this.getLogger().warning(
+        String warningText = PlainTextComponentSerializer.plainText().serialize(
                 Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
                         .append(Component.text("There is a new Naked And Afraid Plugin version available for download: "
                                         + latestVersion + " (Current: " + currentVersion + ")")
                                 .color(NamedTextColor.RED))
-                        .toString()
         );
+        this.getLogger().warning(warningText);
 
         console.sendMessage(
                 Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)

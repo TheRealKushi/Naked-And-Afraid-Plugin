@@ -72,17 +72,17 @@ configurations {
 }
 
 dependencies {
-    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    compileOnly 'io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT'
     compileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.3'
     implementation 'io.papermc:paperlib:1.0.8'
     compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
     pluginRuntime 'net.dmulloy2:ProtocolLib:5.4.0'
     spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.13.0'
     testCompileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.3'
-    testImplementation 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    testImplementation 'io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
-    server "io.papermc.paper:paper:1.21.4-R0.1-SNAPSHOT"
+    server "io.papermc.paper:paper:1.21.8-R0.1-SNAPSHOT"
     implementation 'org.snakeyaml:snakeyaml-engine:2.8'
 }
 
