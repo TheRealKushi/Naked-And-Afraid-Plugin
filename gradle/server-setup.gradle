@@ -1,0 +1,36 @@
+// server-setup.gradle
+def testServerDir = file("$buildDir/test-server")
+def paperVersion = '1.21.4'
+def paperBuild = '232'
+
+tasks.register('downloadPaperServer') {
+    doLast {
+        testServerDir.mkdirs()
+        def serverJar = new File(testServerDir, "paper.jar")
+        if (!serverJar.exists()) {
+            println "Downloading Paper $paperVersion build $paperBuild..."
+            new URL("https://fill-data.papermc.io/v1/objects/5ee4f542f628a14c644410b08c94ea42e772ef4d29fe92973636b6813d4eaffc/paper-1.21.4-232.jar").withInputStream { i ->
+                serverJar.withOutputStream { it << i }
+            }
+        }
+    }
+}
+
+tasks.register('setupServer') {
+    dependsOn shadowJar, downloadPaperServer
+    doLast {
+        file("$testServerDir/eula.txt").text = "eula=true"
+
+        def versionedPluginName = "NakedAndAfraid-1.1.4a.jar"
+        copy {
+            from shadowJar.archiveFile
+            into "$testServerDir/plugins"
+            rename { versionedPluginName }
+        }
+
+        def opsFile = file("$testServerDir/ops.json")
+        def playerName = "TheRealKushi"
+        def uuid = "d53d704e-5293-4cad-96ef-569dca9cc242"
+        opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
+    }
+}

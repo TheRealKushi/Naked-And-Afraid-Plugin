@@ -24,5 +24,5 @@ secrets.json
 .DS_Store
 Thumbs.db
 
-# Ignore Gradle build file
-build.gradle
+# Ignore local server setup file
+gradle/server-setup.gradle
