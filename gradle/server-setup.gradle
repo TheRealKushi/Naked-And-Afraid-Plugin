@@ -34,3 +34,12 @@ tasks.register('setupServer') {
         opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
     }
 }
+
+tasks.register('runServer', JavaExec) {
+    dependsOn setupServer
+    workingDir testServerDir
+    mainClass.set('io.papermc.paperclip.Main')
+    classpath = files("$testServerDir/paper.jar")
+    standardInput = System.in
+    jvmArgs = ['-Xmx4G', '-Dpaper.debug=true']
+}

@@ -6,6 +6,7 @@ import com.crimsonwarpedcraft.nakedandafraid.team.TeamsManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -34,7 +35,78 @@ public class TeamListener implements Listener {
         this.plugin = plugin;
         this.teamsManager = teamsManager;
         this.teamCommands = teamCommands;
-        plugin.debugLog("[TeamListener] Initialized TeamListener");
+        plugin.debugLog("[TeamListener] Initialized TeamListener for Bukkit version " + Bukkit.getBukkitVersion());
+    }
+
+    /**
+     * Checks if the server supports the Adventure API (Minecraft 1.19+).
+     */
+    private boolean isAdventureSupported() {
+        String version = Bukkit.getBukkitVersion().split("-")[0];
+        try {
+            String[] parts = version.split("\\.");
+            int major = Integer.parseInt(parts[1]);
+            return major >= 19;
+        } catch (Exception e) {
+            plugin.debugLog("[TeamListener] Failed to parse Bukkit version: " + version);
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the server is pre-1.13 (Minecraft 1.12).
+     */
+    private boolean isPre113() {
+        return !Bukkit.getBukkitVersion().matches(".*1\\.(1[3-9]|2[0-1]).*");
+    }
+
+    /**
+     * Checks if the server is pre-1.16 (Minecraft 1.12–1.15.2).
+     */
+    private boolean isPre116() {
+        return !Bukkit.getBukkitVersion().matches(".*1\\.(1[6-9]|2[0-1]).*");
+    }
+
+    /**
+     * Sends a message to the player, using Adventure API for 1.19+ or legacy chat for 1.12–1.18.2.
+     */
+    private void sendMessage(Player player, String message, String legacyColor) {
+        if (isAdventureSupported()) {
+            NamedTextColor color = parseNamedTextColor(legacyColor);
+            player.sendMessage(Component.text(message).color(color != null ? color : NamedTextColor.WHITE));
+        } else {
+            player.sendMessage(legacyColor + message);
+        }
+    }
+
+    /**
+     * Parses a legacy color code to NamedTextColor for 1.19+.
+     */
+    private NamedTextColor parseNamedTextColor(String legacyColor) {
+        return switch (legacyColor) {
+            case "§c" -> NamedTextColor.RED;
+            case "§a" -> NamedTextColor.GREEN;
+            case "§f" -> NamedTextColor.WHITE;
+            default -> null;
+        };
+    }
+
+    /**
+     * Parses a string color to ChatColor for 1.12.
+     */
+    private ChatColor parseChatColor(String colorName) {
+        return switch (colorName.toUpperCase()) {
+            case "RED" -> ChatColor.RED;
+            case "GOLD" -> ChatColor.GOLD;
+            case "YELLOW" -> ChatColor.YELLOW;
+            case "GREEN" -> ChatColor.GREEN;
+            case "AQUA" -> ChatColor.AQUA;
+            case "BLUE" -> ChatColor.BLUE;
+            case "DARK_PURPLE" -> ChatColor.DARK_PURPLE;
+            case "LIGHT_PURPLE" -> ChatColor.LIGHT_PURPLE;
+            case "WHITE" -> ChatColor.WHITE;
+            default -> null;
+        };
     }
 
     @EventHandler
@@ -69,14 +141,19 @@ public class TeamListener implements Listener {
             plugin.debugLog("[TeamListener] No item meta for " + player.getName());
             return;
         }
-        Component displayName = meta.displayName();
-        if (displayName == null) {
-            plugin.debugLog("[TeamListener] No display name for item held by " + player.getName());
-            return;
+
+        boolean isValidSelector;
+        if (isAdventureSupported()) {
+            Component displayName = meta.displayName();
+            isValidSelector = displayName != null && displayName.equals(Component.text(TEAM_BLOCK_SELECTOR_NAME).color(NamedTextColor.GOLD));
+        } else {
+            String displayName = meta.getDisplayName();
+            isValidSelector = displayName != null && displayName.equals("§6" + TEAM_BLOCK_SELECTOR_NAME);
         }
-        if (!displayName.equals(Component.text(TEAM_BLOCK_SELECTOR_NAME).color(NamedTextColor.GOLD))) {
+
+        if (!isValidSelector) {
             plugin.debugLog("[TeamListener] Item display name does not match Team Block Selector for " +
-                    player.getName() + ", found: " + displayName);
+                    player.getName() + ", found: " + (isAdventureSupported() ? meta.displayName() : meta.getDisplayName()));
             return;
         }
 
@@ -122,6 +199,33 @@ public class TeamListener implements Listener {
             return;
         }
 
+        if (isPre116()) {
+            plugin.debugLog("[TeamListener] CompassMeta not supported in pre-1.16, checking team lodestone for " + player.getName());
+            TeamsManager.Team team = teamCommands.getTeamForPlayer(player);
+            if (team == null) {
+                plugin.debugLog("[TeamListener] No team found for " + player.getName());
+                sendMessage(player, "You are not in a team.", "§c");
+                return;
+            }
+            Location lodestone = teamsManager.getLodestone(team.getName());
+            if (lodestone == null) {
+                plugin.debugLog("[TeamListener] No lodestone set for team " + team.getName());
+                sendMessage(player, "Your team does not have a lodestone set.", "§c");
+                return;
+            }
+            double distance = player.getLocation().distance(lodestone);
+            plugin.debugLog("[TeamListener] Distance from " + player.getName() +
+                    " to lodestone: " + String.format("%.2f", distance));
+            if (distance > 20) {
+                plugin.debugLog("[TeamListener] " + player.getName() +
+                        " is too far from lodestone (" + String.format("%.2f", distance) + " > 20)");
+                sendMessage(player, "You are too far from your team's lodestone.", "§c");
+                return;
+            }
+            updateTeamScoreboard(player, team);
+            return;
+        }
+
         ItemMeta meta = item.getItemMeta();
         if (!(meta instanceof CompassMeta compassMeta)) {
             plugin.debugLog("[TeamListener] Item meta is not CompassMeta for " + player.getName());
@@ -136,6 +240,7 @@ public class TeamListener implements Listener {
         TeamsManager.Team team = teamCommands.getTeamForPlayer(player);
         if (team == null) {
             plugin.debugLog("[TeamListener] No team found for " + player.getName());
+            sendMessage(player, "You are not in a team.", "§c");
             return;
         }
         plugin.debugLog("[TeamListener] Found team " + team.getName() + " for " + player.getName());
@@ -143,7 +248,7 @@ public class TeamListener implements Listener {
         Location lodestone = teamsManager.getLodestone(team.getName());
         if (lodestone == null) {
             plugin.debugLog("[TeamListener] No lodestone set for team " + team.getName());
-            player.sendMessage(Component.text("Your team does not have a lodestone set.").color(NamedTextColor.RED));
+            sendMessage(player, "Your team does not have a lodestone set.", "§c");
             return;
         }
         plugin.debugLog("[TeamListener] Lodestone found for team " + team.getName() +
@@ -155,16 +260,33 @@ public class TeamListener implements Listener {
         if (distance > 20) {
             plugin.debugLog("[TeamListener] " + player.getName() +
                     " is too far from lodestone (" + String.format("%.2f", distance) + " > 20)");
-            player.sendMessage(Component.text("You are too far from your team's lodestone.").color(NamedTextColor.RED));
+            sendMessage(player, "You are too far from your team's lodestone.", "§c");
             return;
         }
 
+        updateTeamScoreboard(player, team);
+    }
+
+    private void updateTeamScoreboard(Player player, TeamsManager.Team team) {
         Scoreboard scoreboard = player.getScoreboard();
         Team scoreboardTeam = scoreboard.getTeam(team.getName());
         if (scoreboardTeam == null) {
             scoreboardTeam = scoreboard.registerNewTeam(team.getName());
-            scoreboardTeam.color(team.getColor());
-            scoreboardTeam.displayName(Component.text(team.getName()));
+            if (isPre113()) {
+                ChatColor chatColor = parseChatColor(team.getColor());
+                if (chatColor != null) {
+                    scoreboardTeam.setColor(chatColor);
+                    plugin.debugLog("[TeamListener] Set scoreboard team color to " + chatColor + " for team " + team.getName() + " (1.12)");
+                }
+                scoreboardTeam.setDisplayName(team.getName());
+            } else {
+                NamedTextColor namedColor = team.getNamedTextColor();
+                if (namedColor != null) {
+                    scoreboardTeam.color(namedColor);
+                    plugin.debugLog("[TeamListener] Set scoreboard team color to " + namedColor + " for team " + team.getName() + " (1.13+)");
+                }
+                scoreboardTeam.displayName(Component.text(team.getName()));
+            }
             plugin.debugLog("[TeamListener] Created new scoreboard team " + team.getName());
         } else {
             plugin.debugLog("[TeamListener] Found existing scoreboard team " + team.getName());
@@ -194,7 +316,7 @@ public class TeamListener implements Listener {
             }
         }
 
-        player.sendMessage(Component.text("Your nametag has been colored for your team's color").color(NamedTextColor.GREEN));
+        sendMessage(player, "Your nametag has been colored for your team's color", "§a");
         plugin.debugLog("[TeamListener] Sent nametag color confirmation to " + player.getName());
     }
 

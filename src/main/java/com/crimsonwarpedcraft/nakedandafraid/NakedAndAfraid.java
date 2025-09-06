@@ -65,9 +65,26 @@ public class NakedAndAfraid extends JavaPlugin {
 
   private TabListClearer tabListClearer;
 
+  /**
+   * Checks if the server supports the Adventure API (Minecraft 1.19+).
+   *
+   * @return true if the server version is 1.19 or higher, false otherwise.
+   */
+  private boolean isAdventureSupported() {
+    String version = Bukkit.getBukkitVersion().split("-")[0];
+    try {
+      String[] parts = version.split("\\.");
+      int major = Integer.parseInt(parts[1]);
+      return major >= 19;
+    } catch (Exception e) {
+      debugLog("[NakedAndAfraid] Failed to parse Bukkit version: " + version);
+      return false;
+    }
+  }
+
   @Override
   public void onEnable() {
-    debugLog("[NakedAndAfraid] Starting plugin initialization");
+    debugLog("[NakedAndAfraid] Starting plugin initialization for Bukkit version " + Bukkit.getBukkitVersion());
     PaperLib.suggestPaper(this);
 
     // Load default config and initialize listeners
@@ -103,15 +120,16 @@ public class NakedAndAfraid extends JavaPlugin {
     debugLog("[NakedAndAfraid] Initialized TeleportHelper");
 
     // Initialize tab hider if ProtocolLib is present
-    if (getConfig().getBoolean("disable-tab", true) &&
-            Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+    boolean protocolLibPresent = Bukkit.getPluginManager().getPlugin("ProtocolLib") != null;
+    if (getConfig().getBoolean("disable-tab", true) && protocolLibPresent) {
       tabListClearer = new TabListClearer(this);
       tabListClearer.enable();
       getLogger().info("Naked And Afraid - Tab Hider Enabled.");
       debugLog("[NakedAndAfraid] Tab hider enabled with ProtocolLib");
     } else {
-      getLogger().warning("ProtocolLib not found or tab hiding disabled.");
-      debugLog("[NakedAndAfraid] Tab hider not enabled (ProtocolLib missing or disable-tab=false)");
+      String reason = protocolLibPresent ? "disable-tab=false" : "ProtocolLib missing";
+      getLogger().warning("Tab hider not enabled: " + reason + " (Server version: " + Bukkit.getBukkitVersion() + ")");
+      debugLog("[NakedAndAfraid] Tab hider not enabled (" + reason + ")");
     }
 
     getServer().getPluginManager().registerEvents(new com.crimsonwarpedcraft.nakedandafraid.listeners.VersionNotifyListener(this), this);
@@ -128,10 +146,6 @@ public class NakedAndAfraid extends JavaPlugin {
     }
   }
 
-  /**
-   * Reloads all listeners according to the plugin configuration.
-   * Handles enabling/disabling chat, tab, armor, and join/quit message features.
-   */
   /**
    * Reloads all listeners according to the plugin configuration.
    * Handles enabling/disabling chat, tab, armor, and join/quit message features.
@@ -171,7 +185,8 @@ public class NakedAndAfraid extends JavaPlugin {
 
     // Tab hiding
     boolean disableTab = getConfig().getBoolean("disable-tab", true);
-    if (disableTab && Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+    boolean protocolLibPresent = Bukkit.getPluginManager().getPlugin("ProtocolLib") != null;
+    if (disableTab && protocolLibPresent) {
       tabListClearer = new TabListClearer(this);
       tabListClearer.enable();
       getLogger().info("Naked And Afraid - Tab Hider Enabled.");
@@ -182,6 +197,9 @@ public class NakedAndAfraid extends JavaPlugin {
         tabListClearer.applyToPlayer(player);
         debugLog("[NakedAndAfraid] Applied TabListClearer to player " + player.getName());
       }
+    } else {
+      String reason = protocolLibPresent ? "disable-tab=false" : "ProtocolLib missing";
+      debugLog("[NakedAndAfraid] Tab hider not enabled (" + reason + ")");
     }
 
     // Armor damage
@@ -353,6 +371,9 @@ public class NakedAndAfraid extends JavaPlugin {
       return false;
     }
 
+    boolean isAdventure = isAdventureSupported();
+    boolean isPre113 = !Bukkit.getBukkitVersion().matches(".*1\\.(1[3-9]|2[0-1]).*");
+
     if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
       int page = 1;
       if (args.length >= 2) {
@@ -360,7 +381,11 @@ public class NakedAndAfraid extends JavaPlugin {
           page = Integer.parseInt(args[1]);
           debugLog("[NakedAndAfraid] Parsed help page number: " + page);
         } catch (NumberFormatException ignored) {
-          sender.sendMessage("§cInvalid help page number. Showing page 1.");
+          if (isAdventure) {
+            sender.sendMessage(Component.text("Invalid help page number. Showing page 1.").color(NamedTextColor.RED));
+          } else {
+            sender.sendMessage("§cInvalid help page number. Showing page 1.");
+          }
           debugLog("[NakedAndAfraid] Invalid help page number: " + args[1]);
         }
       }
@@ -372,9 +397,13 @@ public class NakedAndAfraid extends JavaPlugin {
     switch (args[0].toLowerCase()) {
       case "reloadconfig" -> {
         if (!sender.hasPermission("nakedandafraid.reload")) {
-          sender.sendMessage("§cYou don't have permission to execute this command.");
+          if (isAdventure) {
+            sender.sendMessage(Component.text("You don't have permission to execute this command.").color(NamedTextColor.RED));
+          } else {
+            sender.sendMessage("§cYou don't have permission to execute this command.");
+          }
           debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for reloadconfig");
-          return true;
+          return isPre113 ? false : true;
         }
 
         debugLog("[NakedAndAfraid] Reloading config for " + sender.getName());
@@ -391,15 +420,23 @@ public class NakedAndAfraid extends JavaPlugin {
 
         spawnManager.loadSpawns();
         debugLog("[NakedAndAfraid] Reloaded spawns");
-        sender.sendMessage("§aNaked and Afraid config reloaded.");
+        if (isAdventure) {
+          sender.sendMessage(Component.text("Naked and Afraid config reloaded.").color(NamedTextColor.GREEN));
+        } else {
+          sender.sendMessage("§aNaked and Afraid config reloaded.");
+        }
         debugLog("[NakedAndAfraid] Sent config reload confirmation to " + sender.getName());
         return true;
       }
       case "spawn" -> {
         if (!sender.hasPermission("nakedandafraid.spawn")) {
-          sender.sendMessage("§cYou don't have permission to execute this command.");
+          if (isAdventure) {
+            sender.sendMessage(Component.text("You don't have permission to execute this command.").color(NamedTextColor.RED));
+          } else {
+            sender.sendMessage("§cYou don't have permission to execute this command.");
+          }
           debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for spawn command");
-          return true;
+          return isPre113 ? false : true;
         }
         boolean result = spawnManager.handleCommand(sender, args);
         debugLog("[NakedAndAfraid] Spawn command result for " + sender.getName() + ": " + result);
@@ -407,9 +444,13 @@ public class NakedAndAfraid extends JavaPlugin {
       }
       case "team" -> {
         if (!sender.hasPermission("nakedandafraid.team")) {
-          sender.sendMessage("§cYou don't have permission to execute this command.");
+          if (isAdventure) {
+            sender.sendMessage(Component.text("You don't have permission to execute this command.").color(NamedTextColor.RED));
+          } else {
+            sender.sendMessage("§cYou don't have permission to execute this command.");
+          }
           debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for team command");
-          return true;
+          return isPre113 ? false : true;
         }
         boolean result = teamCommands.handleTeamCommand(sender, args);
         debugLog("[NakedAndAfraid] Team command result for " + sender.getName() + ": " + result);
@@ -417,18 +458,26 @@ public class NakedAndAfraid extends JavaPlugin {
       }
       case "user" -> {
         if (!sender.hasPermission("nakedandafraid.user")) {
-          sender.sendMessage("§cYou don't have permission to execute this command.");
+          if (isAdventure) {
+            sender.sendMessage(Component.text("You don't have permission to execute this command.").color(NamedTextColor.RED));
+          } else {
+            sender.sendMessage("§cYou don't have permission to execute this command.");
+          }
           debugLog("[NakedAndAfraid] " + sender.getName() + " lacks permission for user command");
-          return true;
+          return isPre113 ? false : true;
         }
         boolean result = teamCommands.handleUserCommand(sender, args);
         debugLog("[NakedAndAfraid] User command result for " + sender.getName() + ": " + result);
         return result;
       }
       default -> {
-        sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
+        if (isAdventure) {
+          sender.sendMessage(Component.text("Unknown subcommand. Use /nf help for commands.").color(NamedTextColor.RED));
+        } else {
+          sender.sendMessage("§cUnknown subcommand. Use /nf help for commands.");
+        }
         debugLog("[NakedAndAfraid] Unknown subcommand from " + sender.getName() + ": " + args[0]);
-        return true;
+        return isPre113 ? false : true;
       }
     }
   }
@@ -591,6 +640,7 @@ public class NakedAndAfraid extends JavaPlugin {
    */
   private void sendHelpMessage(@NotNull CommandSender sender, int page) {
     debugLog("[NakedAndAfraid] Preparing help message for " + sender.getName() + ", page " + page);
+    boolean isAdventure = isAdventureSupported();
     List<String> helpLines = List.of(
             "§e/nf help §7- Show this help message",
             "§e/nf §7- Alias for /nf help",
@@ -617,7 +667,11 @@ public class NakedAndAfraid extends JavaPlugin {
     if (page > totalPages) page = totalPages;
     debugLog("[NakedAndAfraid] Adjusted help page to " + page + " (total pages: " + totalPages + ")");
 
-    sender.sendMessage("§6==== NakedAndAfraid Help ====");
+    if (isAdventure) {
+      sender.sendMessage(Component.text("==== NakedAndAfraid Help ====").color(NamedTextColor.GOLD));
+    } else {
+      sender.sendMessage("§6==== NakedAndAfraid Help ====");
+    }
 
     int startIndex = (page - 1) * HELP_LINES_PER_PAGE;
     int endIndex = Math.min(startIndex + HELP_LINES_PER_PAGE, helpLines.size());
@@ -626,7 +680,11 @@ public class NakedAndAfraid extends JavaPlugin {
       sender.sendMessage(helpLines.get(i));
     }
 
-    sender.sendMessage("§7Page §e" + page + " §7of §e" + totalPages);
+    if (isAdventure) {
+      sender.sendMessage(Component.text("Page " + page + " of " + totalPages).color(NamedTextColor.YELLOW));
+    } else {
+      sender.sendMessage("§ePage " + page + " of " + totalPages);
+    }
     debugLog("[NakedAndAfraid] Sent help page " + page + " to " + sender.getName());
   }
 
@@ -644,22 +702,38 @@ public class NakedAndAfraid extends JavaPlugin {
   private void logStartupInfo() {
     debugLog("[NakedAndAfraid] Sending startup information to console");
     ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
+    boolean isAdventure = isAdventureSupported();
 
-    console.sendMessage(" ");
-    console.sendMessage(Component.text("__   ____  _______ ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("| \\ | | | | ____||").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("|  \\| | | | ||_   ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("| |\\| | | | __||  ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.text("|_| \\_|_| |_||    ").color(NamedTextColor.GOLD));
-    console.sendMessage(Component.empty());
-    console.sendMessage(Component.text("NakedAndAfraid Plugin ").color(NamedTextColor.GOLD)
-            .append(Component.text("v" + this.getDescription().getVersion()).color(NamedTextColor.DARK_RED)));
-    console.sendMessage(Component.text("Running on ").color(NamedTextColor.YELLOW)
-            .append(Component.text(Bukkit.getServer().getName()).color(NamedTextColor.AQUA))
-            .append(Component.text(" " + Bukkit.getServer().getVersion()).color(NamedTextColor.WHITE)));
-    console.sendMessage(Component.empty());
-    console.sendMessage(Component.text("NakedAndAfraid Plugin enabled successfully!").color(NamedTextColor.GREEN));
-    console.sendMessage(Component.empty());
+    if (isAdventure) {
+      console.sendMessage(" ");
+      console.sendMessage(Component.text("__   ____  _______ ").color(NamedTextColor.GOLD));
+      console.sendMessage(Component.text("| \\ | | | | ____||").color(NamedTextColor.GOLD));
+      console.sendMessage(Component.text("|  \\| | | | ||_   ").color(NamedTextColor.GOLD));
+      console.sendMessage(Component.text("| |\\| | | | __||  ").color(NamedTextColor.GOLD));
+      console.sendMessage(Component.text("|_| \\_|_| |_||    ").color(NamedTextColor.GOLD));
+      console.sendMessage(Component.empty());
+      console.sendMessage(Component.text("NakedAndAfraid Plugin ").color(NamedTextColor.GOLD)
+              .append(Component.text("v" + this.getDescription().getVersion()).color(NamedTextColor.DARK_RED)));
+      console.sendMessage(Component.text("Running on ").color(NamedTextColor.YELLOW)
+              .append(Component.text(Bukkit.getServer().getName()).color(NamedTextColor.AQUA))
+              .append(Component.text(" " + Bukkit.getServer().getVersion()).color(NamedTextColor.WHITE)));
+      console.sendMessage(Component.empty());
+      console.sendMessage(Component.text("NakedAndAfraid Plugin enabled successfully!").color(NamedTextColor.GREEN));
+      console.sendMessage(Component.empty());
+    } else {
+      console.sendMessage(" ");
+      console.sendMessage("§6__   ____  _______ ");
+      console.sendMessage("§6| \\ | | | | ____||");
+      console.sendMessage("§6|  \\| | | | ||_   ");
+      console.sendMessage("§6| |\\| | | | __||  ");
+      console.sendMessage("§6|_| \\_|_| |_||    ");
+      console.sendMessage("");
+      console.sendMessage("§6NakedAndAfraid Plugin §4v" + this.getDescription().getVersion());
+      console.sendMessage("§eRunning on §b" + Bukkit.getServer().getName() + " §f" + Bukkit.getServer().getVersion());
+      console.sendMessage("");
+      console.sendMessage("§aNakedAndAfraid Plugin enabled successfully!");
+      console.sendMessage("");
+    }
 
     String currentVersion = this.getDescription().getVersion();
     debugLog("[NakedAndAfraid] Checking version: current=" + currentVersion);
@@ -667,26 +741,27 @@ public class NakedAndAfraid extends JavaPlugin {
     String latestVersion = versionChecker.getLatestVersion();
 
     if (latestVersion != null && versionChecker.isOutdated(currentVersion)) {
-      this.getLogger().warning(
-              Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
-                      .append(Component.text("There is a new Naked And Afraid Plugin version available for download: "
-                                      + latestVersion + " (Current: " + currentVersion + ")")
-                              .color(NamedTextColor.RED))
-                      .toString()
-      );
+      if (isAdventure) {
+        this.getLogger().warning(
+                Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
+                        .append(Component.text("There is a new Naked And Afraid Plugin version available for download: "
+                                        + latestVersion + " (Current: " + currentVersion + ")")
+                                .color(NamedTextColor.RED))
+                        .toString()
+        );
 
-      console.sendMessage(
-              Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
-                      .append(
-                              Component.text("Download it here: ")
-                                      .color(NamedTextColor.RED)
-                      )
-                      .append(
-                              Component.text("https://modrinth.com/plugin/naked-and-afraid-plugin/versions")
-                                      .color(NamedTextColor.RED)
-                                      .clickEvent(ClickEvent.openUrl("https://modrinth.com/plugin/naked-and-afraid-plugin/versions"))
-                      )
-      );
+        console.sendMessage(
+                Component.text("[NakedAndAfraid] ").color(NamedTextColor.GOLD)
+                        .append(Component.text("Download it here: ").color(NamedTextColor.RED))
+                        .append(Component.text("https://modrinth.com/plugin/naked-and-afraid-plugin/versions")
+                                .color(NamedTextColor.RED)
+                                .clickEvent(ClickEvent.openUrl("https://modrinth.com/plugin/naked-and-afraid-plugin/versions")))
+        );
+      } else {
+        this.getLogger().warning("[NakedAndAfraid] There is a new Naked And Afraid Plugin version available for download: " +
+                latestVersion + " (Current: " + currentVersion + ")");
+        console.sendMessage("§6[NakedAndAfraid] §cDownload it here: §chttps://modrinth.com/plugin/naked-and-afraid-plugin/versions");
+      }
       debugLog("[NakedAndAfraid] Notified console of outdated version: " + latestVersion);
     } else {
       debugLog("[NakedAndAfraid] Version is up to date or no latest version available");

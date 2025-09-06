@@ -5,7 +5,8 @@
 ############################################################
 
 # This is the config file for the Naked And Afraid plugin.
-# This config was generated for version 1.0.0.
+# Compatible with Minecraft 1.12–1.21.8.
+# This config file is made for version 1.1.4a.
 
 # If you want to use special characters in this document, such as accented letters, you MUST save the file as UTF-8, not ANSI.
 # If you receive an error when the plugin loads, ensure that:
@@ -42,7 +43,7 @@ armor-damage:
   damage-interval-ticks: 20
 
 # Field that contains a list of all existing worlds (gets updated on server startup), where the plugin can be disabled in certain worlds.
-enabled-worlds:
+enabled-worlds: []
 
 # Toggles the debug mode, which provides useful info that can be important for troubleshooting errors.
 debug-mode: false
@@ -59,7 +60,7 @@ max-spawns: 20
 enable-countdown: true
 # Value that determines the duration of the cooldown (in seconds).
 countdown-duration: 10
-# Color Value that determines the cooldown bossbar's color - see Minecraft Formatting Codes for help.
+# Color Value that determines the countdown bossbar's color. Valid values: BLUE, GREEN, PINK, PURPLE, RED, WHITE, YELLOW.
 countdown-color: RED
 # Value that determines whether the player will be frozen in place until cooldown is over.
 countdown-freeze: true

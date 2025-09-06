@@ -12,6 +12,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.*;
 import org.bukkit.scheduler.BukkitRunnable;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -24,7 +26,33 @@ public class TeleportHelper implements Listener {
     public TeleportHelper(NakedAndAfraid plugin) {
         this.plugin = plugin;
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        plugin.debugLog("[TeleportHelper] Initialized TeleportHelper and registered events");
+        plugin.debugLog("[TeleportHelper] Initialized TeleportHelper and registered events for Bukkit version " + Bukkit.getBukkitVersion());
+    }
+
+    /**
+     * Checks if the server supports the Adventure API (Minecraft 1.19+).
+     *
+     * @return true if the server version is 1.19 or higher, false otherwise.
+     */
+    private boolean isAdventureSupported() {
+        String version = Bukkit.getBukkitVersion().split("-")[0];
+        try {
+            String[] parts = version.split("\\.");
+            int major = Integer.parseInt(parts[1]);
+            return major >= 19;
+        } catch (Exception e) {
+            plugin.debugLog("[TeleportHelper] Failed to parse Bukkit version: " + version);
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the server is pre-1.13 (Minecraft 1.12).
+     *
+     * @return true if the server version is 1.12, false otherwise.
+     */
+    private boolean isPre113() {
+        return !Bukkit.getBukkitVersion().matches(".*1\\.(1[3-9]|2[0-1]).*");
     }
 
     /**
@@ -36,16 +64,27 @@ public class TeleportHelper implements Listener {
         plugin.debugLog("[TeleportHelper] Starting countdown teleport for player " + player.getName() +
                 " to location " + formatLocation(target));
 
+        boolean isAdventure = isAdventureSupported();
+
         if (!plugin.getConfig().getBoolean("enable-countdown", true)) {
             plugin.debugLog("[TeleportHelper] Countdown disabled, teleporting " + player.getName() + " immediately");
             player.teleport(target);
+            if (isAdventure) {
+                player.sendMessage(Component.text("Teleported!").color(NamedTextColor.GREEN));
+            } else {
+                player.sendMessage("§aTeleported!");
+            }
             plugin.debugLog("[TeleportHelper] Teleported " + player.getName() + " to " + formatLocation(target));
             return;
         }
 
         if (frozenPlayers.contains(player)) {
             plugin.debugLog("[TeleportHelper] Player " + player.getName() + " is already teleporting, aborting");
-            player.sendMessage("§cYou are already teleporting!");
+            if (isAdventure) {
+                player.sendMessage(Component.text("You are already teleporting!").color(NamedTextColor.RED));
+            } else {
+                player.sendMessage("§cYou are already teleporting!");
+            }
             return;
         }
 
@@ -81,7 +120,11 @@ public class TeleportHelper implements Listener {
                     if (!teleportOnCountdownEnd) {
                         plugin.debugLog("[TeleportHelper] Teleporting " + player.getName() + " at countdown start");
                         player.teleport(target);
-                        player.sendMessage("§aTeleported!");
+                        if (isAdventure) {
+                            player.sendMessage(Component.text("Teleported!").color(NamedTextColor.GREEN));
+                        } else {
+                            player.sendMessage("§aTeleported!");
+                        }
                         plugin.debugLog("[TeleportHelper] Teleported " + player.getName() + " to " + formatLocation(target));
                     }
                 }
@@ -93,11 +136,16 @@ public class TeleportHelper implements Listener {
                     if (teleportOnCountdownEnd) {
                         plugin.debugLog("[TeleportHelper] Teleporting " + player.getName() + " at countdown end");
                         player.teleport(target);
-                        player.sendMessage("§aTeleported!");
+                        if (isAdventure) {
+                            player.sendMessage(Component.text("Teleported!").color(NamedTextColor.GREEN));
+                        } else {
+                            player.sendMessage("§aTeleported!");
+                        }
                         plugin.debugLog("[TeleportHelper] Teleported " + player.getName() + " to " + formatLocation(target));
                     }
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                    plugin.debugLog("[TeleportHelper] Played pling sound for " + player.getName());
+                    Sound plingSound = isPre113() ? Sound.valueOf("NOTE_PLING") : Sound.BLOCK_NOTE_BLOCK_PLING;
+                    player.playSound(player.getLocation(), plingSound, 1, 1);
+                    plugin.debugLog("[TeleportHelper] Played pling sound (" + plingSound + ") for " + player.getName());
                     this.cancel();
                     plugin.debugLog("[TeleportHelper] Cancelled countdown task for " + player.getName());
                     return;
@@ -106,10 +154,11 @@ public class TeleportHelper implements Listener {
                 String tickMessage = messageTemplate.replace("{time}", String.valueOf(timeLeft));
                 bossBar.setTitle(tickMessage);
                 bossBar.setProgress((double) timeLeft / duration);
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1, 1);
+                Sound bellSound = isPre113() ? Sound.valueOf("NOTE_BELL") : Sound.BLOCK_NOTE_BLOCK_BELL;
+                player.playSound(player.getLocation(), bellSound, 1, 1);
                 plugin.debugLog("[TeleportHelper] Updated boss bar for " + player.getName() +
                         ": timeLeft=" + timeLeft + ", progress=" + ((double) timeLeft / duration) +
-                        ", message=" + tickMessage);
+                        ", message=" + tickMessage + ", sound=" + bellSound);
 
                 timeLeft--;
             }
@@ -148,7 +197,7 @@ public class TeleportHelper implements Listener {
 
     @EventHandler
     public void onPlayerSwapHandItems(PlayerSwapHandItemsEvent event) {
-        if (frozenPlayers.contains(event.getPlayer())) {
+        if (!isPre113() && frozenPlayers.contains(event.getPlayer())) {
             event.setCancelled(true);
             plugin.debugLog("[TeleportHelper] Cancelled hand swap for " + event.getPlayer().getName());
         }
@@ -158,7 +207,11 @@ public class TeleportHelper implements Listener {
     public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
         if (frozenPlayers.contains(event.getPlayer())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§cYou cannot run commands while teleporting!");
+            if (isAdventureSupported()) {
+                event.getPlayer().sendMessage(Component.text("You cannot run commands while teleporting!").color(NamedTextColor.RED));
+            } else {
+                event.getPlayer().sendMessage("§cYou cannot run commands while teleporting!");
+            }
             plugin.debugLog("[TeleportHelper] Cancelled command '" + event.getMessage() +
                     "' for " + event.getPlayer().getName());
         }

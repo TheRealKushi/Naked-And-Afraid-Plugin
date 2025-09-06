@@ -1,19 +1,19 @@
 package com.crimsonwarpedcraft.nakedandafraid.spawn;
 
 import com.crimsonwarpedcraft.nakedandafraid.NakedAndAfraid;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-
-import java.util.*;
-
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.*;
 
 public class SpawnManager {
     private final NakedAndAfraid plugin;
@@ -25,8 +25,56 @@ public class SpawnManager {
     public SpawnManager(NakedAndAfraid plugin) {
         this.plugin = plugin;
         this.spawnsFile = new File(plugin.getDataFolder(), "spawns.yml");
-        plugin.debugLog("[SpawnManager] Initialized SpawnManager, spawns file: " + spawnsFile.getPath());
+        plugin.debugLog("[SpawnManager] Initialized SpawnManager for Bukkit version " + Bukkit.getBukkitVersion() +
+                ", spawns file: " + spawnsFile.getPath());
         loadSpawnsFile();
+    }
+
+    /**
+     * Checks if the server supports the Adventure API (Minecraft 1.19+).
+     */
+    private boolean isAdventureSupported() {
+        try {
+            String version = Bukkit.getBukkitVersion().split("-")[0];
+            String[] parts = version.split("\\.");
+            int major = Integer.parseInt(parts[1]);
+            return major >= 19;
+        } catch (Exception e) {
+            plugin.debugLog("[SpawnManager] Failed to parse Bukkit version: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Sends a message to the sender, using Adventure API for 1.19+ or legacy chat for 1.12–1.18.2.
+     */
+    private void sendMessage(CommandSender sender, String message, String legacyColor) {
+        if (isAdventureSupported()) {
+            NamedTextColor color = parseNamedTextColor(legacyColor);
+            if (sender instanceof Player player) {
+                player.sendMessage(Component.text(message).color(color != null ? color : NamedTextColor.WHITE));
+            } else {
+                sender.sendMessage(message); // Console doesn't support Component
+            }
+        } else {
+            sender.sendMessage(legacyColor + message);
+        }
+        plugin.debugLog("[SpawnManager] Sent message to " + sender.getName() + ": " + message);
+    }
+
+    /**
+     * Parses a legacy color code to NamedTextColor for 1.19+.
+     */
+    private NamedTextColor parseNamedTextColor(String legacyColor) {
+        return switch (legacyColor) {
+            case "§c" -> NamedTextColor.RED;
+            case "§e" -> NamedTextColor.YELLOW;
+            case "§a" -> NamedTextColor.GREEN;
+            case "§6" -> NamedTextColor.GOLD;
+            case "§7" -> NamedTextColor.GRAY;
+            case "§f" -> NamedTextColor.WHITE;
+            default -> null;
+        };
     }
 
     public void loadSpawns() {
@@ -57,6 +105,8 @@ public class SpawnManager {
         } else {
             plugin.debugLog("[SpawnManager] No spawns section found in spawns.yml");
         }
+        plugin.debugLog("[SpawnManager] Loaded config: max-spawns=" + plugin.getConfig().getInt("max-spawns", 10) +
+                ", multiple-spawn-priority=" + plugin.getMultipleSpawnPriority());
     }
 
     public void saveSpawns() {
@@ -109,7 +159,7 @@ public class SpawnManager {
     public boolean handleCommand(CommandSender sender, String[] args) {
         plugin.debugLog("[SpawnManager] Processing command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 2) {
-            sender.sendMessage("§cUsage: /nf spawn <create|rename|remove|list|tp|tpall> ...");
+            sendMessage(sender, "Usage: /nf spawn <create|rename|remove|list|tp|tpall> ...", "§c");
             plugin.debugLog("[SpawnManager] Invalid arguments for " + sender.getName() + ", expected at least 2");
             return true;
         }
@@ -125,7 +175,7 @@ public class SpawnManager {
             case "tp" -> handleTp(sender, args);
             case "tpall" -> handleTpAll(sender);
             default -> {
-                sender.sendMessage("§cUnknown spawn subcommand.");
+                sendMessage(sender, "Unknown spawn subcommand.", "§c");
                 plugin.debugLog("[SpawnManager] Unknown subcommand for " + sender.getName() + ": " + sub);
                 yield true;
             }
@@ -135,7 +185,7 @@ public class SpawnManager {
     private boolean handleCreate(CommandSender sender, String[] args) {
         plugin.debugLog("[SpawnManager] Handling create command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 3) {
-            sender.sendMessage("§cUsage: /nf spawn create <name> [x y z] [targetPlayer]");
+            sendMessage(sender, "Usage: /nf spawn create <name> [x y z] [targetPlayer]", "§c");
             plugin.debugLog("[SpawnManager] Invalid arguments for create, expected at least 3");
             return true;
         }
@@ -143,13 +193,13 @@ public class SpawnManager {
         String spawnName = args[2].toLowerCase();
         plugin.debugLog("[SpawnManager] Spawn name: " + spawnName);
         if (spawns.containsKey(spawnName)) {
-            sender.sendMessage("§cSpawn '" + spawnName + "' already exists.");
+            sendMessage(sender, "Spawn '" + spawnName + "' already exists.", "§c");
             plugin.debugLog("[SpawnManager] Spawn '" + spawnName + "' already exists for " + sender.getName());
             return true;
         }
         int maxSpawns = plugin.getConfig().getInt("max-spawns", 10);
         if (spawns.size() >= maxSpawns) {
-            sender.sendMessage("§cYou have reached the max number of spawns.");
+            sendMessage(sender, "You have reached the max number of spawns.", "§c");
             plugin.debugLog("[SpawnManager] Max spawns reached (" + spawns.size() + "/" + maxSpawns + ") for " + sender.getName());
             return true;
         }
@@ -175,7 +225,8 @@ public class SpawnManager {
                 if (sender instanceof Player p) {
                     world = p.getWorld();
                 } else {
-                    world = Bukkit.getWorlds().getFirst();
+                    world = Bukkit.getWorlds().get(0); // Replaced getFirst with get(0) for Java 8 compatibility
+                    plugin.debugLog("[SpawnManager] Using default world for console: " + world.getName());
                 }
                 loc = new Location(world, x, y, z);
                 plugin.debugLog("[SpawnManager] Parsed coordinates for spawn: " + formatLocation(loc));
@@ -186,7 +237,7 @@ public class SpawnManager {
                 }
 
             } catch (NumberFormatException e) {
-                sender.sendMessage("§cInvalid coordinates.");
+                sendMessage(sender, "Invalid coordinates.", "§c");
                 plugin.debugLog("[SpawnManager] Invalid coordinates for " + sender.getName() + ": " + String.join(" ", args));
                 return true;
             }
@@ -200,7 +251,7 @@ public class SpawnManager {
                 loc = p.getLocation();
                 plugin.debugLog("[SpawnManager] Using sender's location: " + formatLocation(loc));
             } else {
-                sender.sendMessage("§cCoordinates or player must be specified when run from console.");
+                sendMessage(sender, "Coordinates or player must be specified when run from console.", "§c");
                 plugin.debugLog("[SpawnManager] No coordinates or player specified for console sender " + sender.getName());
                 return true;
             }
@@ -217,15 +268,15 @@ public class SpawnManager {
         }
 
         if (!Bukkit.getOfflinePlayer(targetPlayerName).hasPlayedBefore() && Bukkit.getPlayerExact(targetPlayerName) == null) {
-            sender.sendMessage("§eWarning: Player '" + targetPlayerName + "' has never joined the server before (still saved).");
+            sendMessage(sender, "Warning: Player '" + targetPlayerName + "' has never joined the server before (still saved).", "§e");
             plugin.debugLog("[SpawnManager] Warning: Target player '" + targetPlayerName + "' has never joined");
         }
 
         spawns.put(spawnName, new SpawnData(loc, targetPlayerName));
         saveSpawns();
-        sender.sendMessage("§aSpawn '" + spawnName + "' created at " +
+        sendMessage(sender, "Spawn '" + spawnName + "' created at " +
                 loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() +
-                " for player " + targetPlayerName);
+                " for player " + targetPlayerName, "§a");
         plugin.debugLog("[SpawnManager] Created spawn '" + spawnName + "' at " + formatLocation(loc) +
                 " for player " + targetPlayerName + " by " + sender.getName());
         return true;
@@ -244,7 +295,7 @@ public class SpawnManager {
     private boolean handleRename(CommandSender sender, String[] args) {
         plugin.debugLog("[SpawnManager] Handling rename command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 4) {
-            sender.sendMessage("§cUsage: /nf spawn rename <oldName> <newName>");
+            sendMessage(sender, "Usage: /nf spawn rename <oldName> <newName>", "§c");
             plugin.debugLog("[SpawnManager] Invalid arguments for rename, expected 4");
             return true;
         }
@@ -254,12 +305,12 @@ public class SpawnManager {
         plugin.debugLog("[SpawnManager] Renaming spawn from '" + oldName + "' to '" + newName + "'");
 
         if (!spawns.containsKey(oldName)) {
-            sender.sendMessage("§cSpawn '" + oldName + "' does not exist.");
+            sendMessage(sender, "Spawn '" + oldName + "' does not exist.", "§c");
             plugin.debugLog("[SpawnManager] Spawn '" + oldName + "' does not exist for " + sender.getName());
             return true;
         }
         if (spawns.containsKey(newName)) {
-            sender.sendMessage("§cSpawn '" + newName + "' already exists.");
+            sendMessage(sender, "Spawn '" + newName + "' already exists.", "§c");
             plugin.debugLog("[SpawnManager] Spawn '" + newName + "' already exists for " + sender.getName());
             return true;
         }
@@ -268,7 +319,7 @@ public class SpawnManager {
         spawns.put(newName, data);
         saveSpawns();
 
-        sender.sendMessage("§aSpawn '" + oldName + "' renamed to '" + newName + "'.");
+        sendMessage(sender, "Spawn '" + oldName + "' renamed to '" + newName + "'.", "§a");
         plugin.debugLog("[SpawnManager] Renamed spawn '" + oldName + "' to '" + newName + "' for " + sender.getName());
         return true;
     }
@@ -276,7 +327,7 @@ public class SpawnManager {
     private boolean handleRemove(CommandSender sender, String[] args) {
         plugin.debugLog("[SpawnManager] Handling remove command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 3) {
-            sender.sendMessage("§cUsage: /nf spawn remove <name>");
+            sendMessage(sender, "Usage: /nf spawn remove <name>", "§c");
             plugin.debugLog("[SpawnManager] Invalid arguments for remove, expected 3");
             return true;
         }
@@ -284,7 +335,7 @@ public class SpawnManager {
         String name = args[2].toLowerCase();
         plugin.debugLog("[SpawnManager] Removing spawn '" + name + "'");
         if (!spawns.containsKey(name)) {
-            sender.sendMessage("§cSpawn '" + name + "' does not exist.");
+            sendMessage(sender, "Spawn '" + name + "' does not exist.", "§c");
             plugin.debugLog("[SpawnManager] Spawn '" + name + "' does not exist for " + sender.getName());
             return true;
         }
@@ -300,7 +351,7 @@ public class SpawnManager {
             e.printStackTrace();
         }
 
-        sender.sendMessage("§aSpawn '" + name + "' removed.");
+        sendMessage(sender, "Spawn '" + name + "' removed.", "§a");
         plugin.debugLog("[SpawnManager] Removed spawn '" + name + "' for " + sender.getName());
         return true;
     }
@@ -308,14 +359,15 @@ public class SpawnManager {
     private boolean handleList(CommandSender sender) {
         plugin.debugLog("[SpawnManager] Handling list command for " + sender.getName());
         if (spawns.isEmpty()) {
-            sender.sendMessage("§eNo spawns defined.");
+            sendMessage(sender, "No spawns defined.", "§e");
             plugin.debugLog("[SpawnManager] No spawns defined for " + sender.getName());
             return true;
         }
-        sender.sendMessage("§6==== Spawns ====");
+        sendMessage(sender, "==== Spawns ====", "§6");
         for (Map.Entry<String, SpawnData> entry : spawns.entrySet()) {
             Location loc = entry.getValue().location();
-            sender.sendMessage("§e" + entry.getKey() + " §7- " + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() + " §f(world: " + loc.getWorld().getName() + ")");
+            sendMessage(sender, entry.getKey() + " - " + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() +
+                    " (world: " + loc.getWorld().getName() + ")", "§e");
             plugin.debugLog("[SpawnManager] Listed spawn '" + entry.getKey() + "' at " + formatLocation(loc) +
                     " for " + sender.getName());
         }
@@ -329,7 +381,7 @@ public class SpawnManager {
     private boolean handleTp(CommandSender sender, String[] args) {
         plugin.debugLog("[SpawnManager] Handling tp command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 3) {
-            sender.sendMessage("§cUsage: /nf spawn tp <name> [player]");
+            sendMessage(sender, "Usage: /nf spawn tp <name> [player]", "§c");
             plugin.debugLog("[SpawnManager] Invalid arguments for tp, expected at least 3");
             return true;
         }
@@ -341,7 +393,7 @@ public class SpawnManager {
         if (args.length >= 4) {
             targetPlayer = Bukkit.getPlayerExact(args[3]);
             if (targetPlayer == null) {
-                sender.sendMessage("§cPlayer '" + args[3] + "' is not online.");
+                sendMessage(sender, "Player '" + args[3] + "' is not online.", "§c");
                 plugin.debugLog("[SpawnManager] Player '" + args[3] + "' not online for " + sender.getName());
                 return true;
             }
@@ -351,7 +403,7 @@ public class SpawnManager {
                 targetPlayer = p;
                 plugin.debugLog("[SpawnManager] Defaulting target player to sender: " + targetPlayer.getName());
             } else {
-                sender.sendMessage("§cYou must specify a player when using this command from console.");
+                sendMessage(sender, "You must specify a player when using this command from console.", "§c");
                 plugin.debugLog("[SpawnManager] No player specified for console sender " + sender.getName());
                 return true;
             }
@@ -368,7 +420,7 @@ public class SpawnManager {
         if (spawns.containsKey(spawnName)) {
             SpawnData spawn = spawns.get(spawnName);
             plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, spawn.location());
-            sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to spawn '" + spawnName + "'...");
+            sendMessage(sender, "Teleporting player " + targetPlayer.getName() + " to spawn '" + spawnName + "'...", "§a");
             plugin.debugLog("[SpawnManager] Teleporting " + targetPlayer.getName() + " to spawn '" + spawnName +
                     "' at " + formatLocation(spawn.location()));
             return true;
@@ -378,19 +430,19 @@ public class SpawnManager {
             String priority = plugin.getMultipleSpawnPriority();
             plugin.debugLog("[SpawnManager] Using multiple-spawn-priority: " + priority);
             SpawnData chosen = switch (priority) {
-                case "FIRST" -> matchingSpawns.getFirst();
+                case "FIRST" -> matchingSpawns.get(0); // Replaced getFirst with get(0) for Java 8 compatibility
                 case "LAST" -> matchingSpawns.get(matchingSpawns.size() - 1);
                 case "RANDOM" -> matchingSpawns.get(new Random().nextInt(matchingSpawns.size()));
-                default -> matchingSpawns.getFirst();
+                default -> matchingSpawns.get(0); // Default to first
             };
             plugin.getTeleportHelper().startCountdownTeleport(targetPlayer, chosen.location());
-            sender.sendMessage("§aTeleporting player " + targetPlayer.getName() + " to their spawn (" + priority + ")...");
+            sendMessage(sender, "Teleporting player " + targetPlayer.getName() + " to their spawn (" + priority + ")...", "§a");
             plugin.debugLog("[SpawnManager] Teleporting " + targetPlayer.getName() + " to their spawn (" + priority +
                     ") at " + formatLocation(chosen.location()));
             return true;
         }
 
-        sender.sendMessage("§cNo spawn found for player " + targetPlayer.getName() + ".");
+        sendMessage(sender, "No spawn found for player " + targetPlayer.getName() + ".", "§c");
         plugin.debugLog("[SpawnManager] No spawn found for " + targetPlayer.getName());
         return true;
     }
@@ -398,7 +450,7 @@ public class SpawnManager {
     private boolean handleTpAll(CommandSender sender) {
         plugin.debugLog("[SpawnManager] Handling tpall command for " + sender.getName());
         if (spawns.isEmpty()) {
-            sender.sendMessage("§eNo spawns defined.");
+            sendMessage(sender, "No spawns defined.", "§e");
             plugin.debugLog("[SpawnManager] No spawns defined for " + sender.getName());
             return true;
         }
@@ -407,12 +459,12 @@ public class SpawnManager {
             SpawnData spawn = entry.getValue();
             Player target = Bukkit.getPlayerExact(spawn.targetPlayerName());
             if (target == null) {
-                sender.sendMessage("§c" + spawn.targetPlayerName() + " is not online!");
+                sendMessage(sender, spawn.targetPlayerName() + " is not online!", "§c");
                 plugin.debugLog("[SpawnManager] Skipped teleport for offline player " + spawn.targetPlayerName());
                 continue;
             }
             plugin.getTeleportHelper().startCountdownTeleport(target, spawn.location());
-            sender.sendMessage("§aTeleporting " + target.getName() + " to their spawn...");
+            sendMessage(sender, "Teleporting " + target.getName() + " to their spawn...", "§a");
             plugin.debugLog("[SpawnManager] Teleporting " + target.getName() + " to spawn '" + entry.getKey() +
                     "' at " + formatLocation(spawn.location()));
         }

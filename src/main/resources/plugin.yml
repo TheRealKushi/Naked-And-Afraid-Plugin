@@ -1,10 +1,11 @@
 main: com.crimsonwarpedcraft.nakedandafraid.NakedAndAfraid
 name: NakedAndAfraid
-version: "1.1.4"
+version: "1.1.4a"
 api-version: "1.21.4"
 author: TheRealKushi
 description: >
-  A plugin that recreates the functions from the Naked and Afraid Youtuber series.
+  A plugin that recreates the functions from the Naked and Afraid YouTube series.
+softdepend: [Paper, kyori-adventure]
 
 commands:
   nf:

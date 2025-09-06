@@ -25,11 +25,43 @@ public class TeamsManager {
 
     private final Map<String, Team> teams = new HashMap<>();
 
+    private static final List<String> VALID_COLORS = Arrays.asList(
+            "RED", "BLUE", "GREEN", "YELLOW", "AQUA",
+            "DARK_PURPLE", "GOLD", "LIGHT_PURPLE", "WHITE"
+    );
+
     public TeamsManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.teamsFile = new File(plugin.getDataFolder(), "teams.yml");
-        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Initialized TeamsManager, teams file: " + teamsFile.getPath());
+        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Initialized TeamsManager for Bukkit version " + Bukkit.getBukkitVersion() +
+                ", teams file: " + teamsFile.getPath());
         loadConfig();
+    }
+
+    /**
+     * Checks if the server supports the Adventure API (Minecraft 1.19+).
+     *
+     * @return true if the server version is 1.19 or higher, false otherwise.
+     */
+    private boolean isAdventureSupported() {
+        String version = Bukkit.getBukkitVersion().split("-")[0];
+        try {
+            String[] parts = version.split("\\.");
+            int major = Integer.parseInt(parts[1]);
+            return major >= 19;
+        } catch (Exception e) {
+            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Failed to parse Bukkit version: " + version);
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the server is pre-1.16 (Minecraft 1.12–1.15.2).
+     *
+     * @return true if the server version is before 1.16, false otherwise.
+     */
+    private boolean isPre116() {
+        return !Bukkit.getBukkitVersion().matches(".*1\\.(1[6-9]|2[0-1]).*");
     }
 
     public void loadConfig() {
@@ -43,14 +75,20 @@ public class TeamsManager {
 
         maxTeams = plugin.getConfig().getInt("max-teams", 10);
         ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Loaded max-teams: " + maxTeams);
+
         String blockName = plugin.getConfig().getString("team-block", "LODESTONE").toUpperCase();
         try {
-            teamBlockMaterial = Material.valueOf(blockName);
-            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Loaded team-block: " + teamBlockMaterial.name());
+            if (isPre116() && blockName.equals("LODESTONE")) {
+                teamBlockMaterial = Material.OBSIDIAN;
+                ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Pre-1.16 detected, defaulting team-block to OBSIDIAN (LODESTONE unavailable)");
+            } else {
+                teamBlockMaterial = Material.valueOf(blockName);
+                ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Loaded team-block: " + teamBlockMaterial.name());
+            }
         } catch (IllegalArgumentException e) {
-            plugin.getLogger().warning("Invalid team-block material in config.yml, defaulting to LODESTONE");
-            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Invalid team-block '" + blockName + "', defaulting to LODESTONE");
-            teamBlockMaterial = Material.LODESTONE;
+            teamBlockMaterial = isPre116() ? Material.OBSIDIAN : Material.LODESTONE;
+            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Invalid team-block '" + blockName + "', defaulting to " + teamBlockMaterial.name());
+            plugin.getLogger().warning("Invalid team-block material in config.yml, defaulting to " + teamBlockMaterial.name());
         }
 
         teams.clear();
@@ -60,17 +98,10 @@ public class TeamsManager {
             for (String teamName : teamsConfig.getConfigurationSection("teams").getKeys(false)) {
                 String path = "teams." + teamName;
 
-                String colorName = teamsConfig.getString(path + ".color", "WHITE");
-                NamedTextColor color;
-                try {
-                    color = NamedTextColor.NAMES.value(colorName.toLowerCase());
-                    if (color == null) {
-                        color = NamedTextColor.WHITE;
-                        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Invalid color '" + colorName + "' for team '" + teamName + "', defaulting to WHITE");
-                    }
-                } catch (Exception e) {
-                    color = NamedTextColor.WHITE;
-                    ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Exception parsing color '" + colorName + "' for team '" + teamName + "', defaulting to WHITE");
+                String colorName = teamsConfig.getString(path + ".color", "WHITE").toUpperCase();
+                String color = VALID_COLORS.contains(colorName) ? colorName : "WHITE";
+                if (!colorName.equals(color)) {
+                    ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Invalid color '" + colorName + "' for team '" + teamName + "', defaulting to WHITE");
                 }
 
                 List<String> memberUUIDs = teamsConfig.getStringList(path + ".members");
@@ -114,7 +145,7 @@ public class TeamsManager {
         for (Team team : teams.values()) {
             String path = "teams." + team.getName();
 
-            teamsConfig.set(path + ".color", team.getColor().toString().toUpperCase());
+            teamsConfig.set(path + ".color", team.getColor());
 
             List<String> memberUUIDs = new ArrayList<>();
             for (UUID uuid : team.getMembers()) {
@@ -147,6 +178,20 @@ public class TeamsManager {
         }
     }
 
+    public boolean removeTeam(String teamName) {
+        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Attempting to remove team '" + teamName + "'");
+        String teamKey = teamName.toLowerCase();
+        if (!teams.containsKey(teamKey)) {
+            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Team '" + teamName + "' does not exist, cannot remove");
+            return false;
+        }
+        teams.remove(teamKey);
+        teamsConfig.set("teams." + teamName, null);
+        saveConfig();
+        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Removed team '" + teamName + "'");
+        return true;
+    }
+
     public int getMaxTeams() {
         ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Retrieved max-teams: " + maxTeams);
         return maxTeams;
@@ -169,7 +214,7 @@ public class TeamsManager {
         return team;
     }
 
-    public boolean createTeam(String teamName, NamedTextColor color) {
+    public boolean createTeam(String teamName, String color) {
         ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Attempting to create team '" + teamName + "' with color " + color);
         if (teams.size() >= maxTeams) {
             ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Cannot create team '" + teamName + "', max teams reached (" + teams.size() + "/" + maxTeams + ")");
@@ -179,21 +224,14 @@ public class TeamsManager {
             ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Cannot create team '" + teamName + "', already exists");
             return false;
         }
-        teams.put(teamName.toLowerCase(), new Team(teamName, color, new HashSet<>(), null));
-        saveConfig();
-        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Created team '" + teamName + "' with color " + color);
-        return true;
-    }
-
-    public void removeTeam(String teamName) {
-        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Attempting to remove team '" + teamName + "'");
-        if (!teamExists(teamName)) {
-            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Team '" + teamName + "' does not exist, skipping removal");
-            return;
+        String validatedColor = VALID_COLORS.contains(color.toUpperCase()) ? color.toUpperCase() : "WHITE";
+        if (!color.toUpperCase().equals(validatedColor)) {
+            ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Invalid color '" + color + "' for team '" + teamName + "', defaulting to WHITE");
         }
-        teams.remove(teamName.toLowerCase());
+        teams.put(teamName.toLowerCase(), new Team(teamName, validatedColor, new HashSet<>(), null));
         saveConfig();
-        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Removed team '" + teamName + "'");
+        ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Created team '" + teamName + "' with color " + validatedColor);
+        return true;
     }
 
     public boolean addMember(String teamName, UUID playerUUID) {
@@ -296,11 +334,11 @@ public class TeamsManager {
 
     public class Team {
         private final String name;
-        private NamedTextColor color;
+        private String color;
         private final Set<UUID> members;
         private Location lodestone;
 
-        public Team(String name, NamedTextColor color, Set<UUID> members, Location lodestone) {
+        public Team(String name, String color, Set<UUID> members, Location lodestone) {
             this.name = name;
             this.color = color;
             this.members = members;
@@ -318,14 +356,36 @@ public class TeamsManager {
             return name;
         }
 
-        public NamedTextColor getColor() {
+        public String getColor() {
             ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Retrieved color " + color + " for team '" + name + "'");
             return color;
         }
 
-        public void setColor(NamedTextColor color) {
+        public NamedTextColor getNamedTextColor() {
+            if (!getOuterInstance().isAdventureSupported()) {
+                ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Adventure API not supported, returning null NamedTextColor for team '" + name + "'");
+                return null;
+            }
+            try {
+                NamedTextColor namedColor = NamedTextColor.NAMES.value(color.toLowerCase());
+                if (namedColor == null) {
+                    ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Invalid NamedTextColor '" + color + "' for team '" + name + "', defaulting to WHITE");
+                    return NamedTextColor.WHITE;
+                }
+                ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Retrieved NamedTextColor " + namedColor + " for team '" + name + "'");
+                return namedColor;
+            } catch (Exception e) {
+                ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Exception parsing NamedTextColor '" + color + "' for team '" + name + "', defaulting to WHITE");
+                return NamedTextColor.WHITE;
+            }
+        }
+
+        public void setColor(String color) {
             ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Setting color for team '" + name + "' to " + color);
-            this.color = color;
+            this.color = VALID_COLORS.contains(color.toUpperCase()) ? color.toUpperCase() : "WHITE";
+            if (!color.toUpperCase().equals(this.color)) {
+                ((NakedAndAfraid) getOuterInstance().plugin).debugLog("[TeamsManager] Invalid color '" + color + "' for team '" + name + "', defaulting to WHITE");
+            }
         }
 
         public Set<UUID> getMembers() {

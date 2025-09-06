@@ -28,13 +28,68 @@ public class TeamCommands {
     public TeamCommands(TeamsManager teamsManager, JavaPlugin plugin) {
         this.teamsManager = teamsManager;
         this.plugin = plugin;
-        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Initialized TeamCommands");
+        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Initialized TeamCommands for Bukkit version " + Bukkit.getBukkitVersion());
+    }
+
+    /**
+     * Checks if the server supports the Adventure API (Minecraft 1.19+).
+     */
+    private boolean isAdventureSupported() {
+        String version = Bukkit.getBukkitVersion().split("-")[0];
+        try {
+            String[] parts = version.split("\\.");
+            int major = Integer.parseInt(parts[1]);
+            return major >= 19;
+        } catch (Exception e) {
+            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Failed to parse Bukkit version: " + version);
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the server is pre-1.13 (Minecraft 1.12).
+     */
+    private boolean isPre113() {
+        return !Bukkit.getBukkitVersion().matches(".*1\\.(1[3-9]|2[0-1]).*");
+    }
+
+    /**
+     * Checks if the server is pre-1.14 (Minecraft 1.12–1.13.2).
+     */
+    private boolean isPre114() {
+        return !Bukkit.getBukkitVersion().matches(".*1\\.(1[4-9]|2[0-1]).*");
+    }
+
+    /**
+     * Sends a message to the sender, using Adventure API for 1.19+ or legacy chat for 1.12–1.18.2.
+     */
+    private void sendMessage(CommandSender sender, String message, String legacyColor) {
+        if (isAdventureSupported()) {
+            NamedTextColor color = parseNamedTextColor(legacyColor);
+            sender.sendMessage(Component.text(message).color(color != null ? color : NamedTextColor.WHITE));
+        } else {
+            sender.sendMessage(legacyColor + message);
+        }
+    }
+
+    /**
+     * Parses a legacy color code to NamedTextColor for 1.19+.
+     */
+    private NamedTextColor parseNamedTextColor(String legacyColor) {
+        return switch (legacyColor) {
+            case "§c" -> NamedTextColor.RED;
+            case "§e" -> NamedTextColor.YELLOW;
+            case "§a" -> NamedTextColor.GREEN;
+            case "§6" -> NamedTextColor.GOLD;
+            case "§f" -> NamedTextColor.WHITE;
+            default -> null;
+        };
     }
 
     public boolean handleTeamCommand(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Processing team command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 2) {
-            sender.sendMessage(Component.text("Usage: /nf team <create|list|remove|block|setblock> ...").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team <create|list|remove|block|setblock> ...", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for " + sender.getName() + ", expected at least 2");
             return true;
         }
@@ -51,7 +106,7 @@ public class TeamCommands {
                     return handleTeamSetBlock(sender, args);
                 }
             }
-            sender.sendMessage(Component.text("Usage: /nf team <team-name> <block|setblock> ...").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team <team-name> <block|setblock> ...", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid subcommand for team '" + sub + "', expected block or setblock");
             return true;
         }
@@ -68,30 +123,30 @@ public class TeamCommands {
                 if (args.length >= 4 && teamsManager.teamExists(args[2].toLowerCase()) && args[3].equalsIgnoreCase("selector")) {
                     return handleTeamBlockSelector(sender, args);
                 }
-                sender.sendMessage(Component.text("Usage: /nf team <team-name> block selector <player>").color(NamedTextColor.RED));
+                sendMessage(sender, "Usage: /nf team <team-name> block selector <player>", "§c");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for block selector");
                 return true;
             case "setblock":
                 if (args.length == 6 && teamsManager.teamExists(args[2].toLowerCase())) {
                     return handleTeamSetBlock(sender, args);
                 }
-                sender.sendMessage(Component.text("Usage: /nf team <team-name> setblock <x> <y> <z>").color(NamedTextColor.RED));
+                sendMessage(sender, "Usage: /nf team <team-name> setblock <x> <y> <z>", "§c");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for setblock");
                 return true;
             case "meta":
                 if (args.length < 4) {
-                    sender.sendMessage(Component.text("Usage: /nf team meta <team-name> color <get|set> [color]").color(NamedTextColor.RED));
+                    sendMessage(sender, "Usage: /nf team meta <team-name> color <get|set> [color]", "§c");
                     ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for meta, expected at least 4");
                     return true;
                 }
                 if (args[3].equalsIgnoreCase("color")) {
                     return handleTeamMetaColor(sender, args);
                 }
-                sender.sendMessage(Component.text("Unknown meta subcommand.").color(NamedTextColor.RED));
+                sendMessage(sender, "Unknown meta subcommand.", "§c");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Unknown meta subcommand: " + args[3]);
                 return true;
         }
-        sender.sendMessage(Component.text("Unknown team subcommand.").color(NamedTextColor.RED));
+        sendMessage(sender, "Unknown team subcommand.", "§c");
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Unknown subcommand: " + sub);
         return true;
     }
@@ -99,7 +154,7 @@ public class TeamCommands {
     public boolean handleUserCommand(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Processing user command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 4) {
-            sender.sendMessage(Component.text("Usage: /nf user <player> team <add|remove|list> [team]").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf user <player> team <add|remove|list> [team]", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for user command, expected at least 4");
             return true;
         }
@@ -115,7 +170,7 @@ public class TeamCommands {
         return switch (userSub) {
             case "add" -> {
                 if (args.length < 5) {
-                    sender.sendMessage(Component.text("Usage: /nf user <player> team add <team>").color(NamedTextColor.RED));
+                    sendMessage(sender, "Usage: /nf user <player> team add <team>", "§c");
                     ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for user add, expected 5");
                     yield true;
                 }
@@ -123,7 +178,7 @@ public class TeamCommands {
             }
             case "remove" -> {
                 if (args.length < 5) {
-                    sender.sendMessage(Component.text("Usage: /nf user <player> team remove <team>").color(NamedTextColor.RED));
+                    sendMessage(sender, "Usage: /nf user <player> team remove <team>", "§c");
                     ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for user remove, expected 5");
                     yield true;
                 }
@@ -131,7 +186,7 @@ public class TeamCommands {
             }
             case "list" -> handleUserTeamList(sender, target);
             default -> {
-                sender.sendMessage(Component.text("Unknown user team subcommand.").color(NamedTextColor.RED));
+                sendMessage(sender, "Unknown user team subcommand.", "§c");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Unknown user subcommand: " + userSub);
                 yield true;
             }
@@ -141,7 +196,7 @@ public class TeamCommands {
     private boolean handleTeamCreate(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling team create command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 4) {
-            sender.sendMessage(Component.text("Usage: /nf team create <team-name> <team-color>").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team create <team-name> <team-color>", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for create, expected at least 4");
             return true;
         }
@@ -150,43 +205,48 @@ public class TeamCommands {
         String colorName = args[3].toUpperCase();
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team name: " + teamName + ", color: " + colorName);
 
-        NamedTextColor color = parseColor(colorName);
-        if (color == null) {
-            sender.sendMessage(Component.text("Invalid color. Valid colors: RED, BLUE, GREEN, YELLOW, AQUA, DARK_PURPLE, GOLD, LIGHT_PURPLE, WHITE").color(NamedTextColor.RED));
+        if (!isValidColor(colorName)) {
+            sendMessage(sender, "Invalid color. Valid colors: RED, BLUE, GREEN, YELLOW, AQUA, DARK_PURPLE, GOLD, LIGHT_PURPLE, WHITE", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid color: " + colorName);
             return true;
         }
 
         if (teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team already exists.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team already exists.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' already exists");
             return true;
         }
 
-        if (!teamsManager.createTeam(teamName, color)) {
-            sender.sendMessage(Component.text("Max teams reached!").color(NamedTextColor.RED));
+        if (!teamsManager.createTeam(teamName, colorName)) {
+            sendMessage(sender, "Max teams reached!", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Max teams reached for '" + teamName + "'");
             return true;
         }
 
-        sender.sendMessage(Component.text("Team '" + teamName + "' created with color " + getColorName(color)).color(color));
-        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Created team '" + teamName + "' with color " + getColorName(color));
+        String message = "Team '" + teamName + "' created with color " + colorName;
+        sendMessage(sender, message, isAdventureSupported() ? getLegacyColor(teamsManager.getTeam(teamName).getNamedTextColor()) : "§f");
+        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Created team '" + teamName + "' with color " + colorName);
         return true;
     }
 
-    private NamedTextColor parseColor(String colorName) {
-        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Parsing color: " + colorName);
-        return switch (colorName) {
-            case "RED" -> NamedTextColor.RED;
-            case "GOLD" -> NamedTextColor.GOLD;
-            case "YELLOW" -> NamedTextColor.YELLOW;
-            case "GREEN" -> NamedTextColor.GREEN;
-            case "AQUA" -> NamedTextColor.AQUA;
-            case "BLUE" -> NamedTextColor.BLUE;
-            case "DARK_PURPLE" -> NamedTextColor.DARK_PURPLE;
-            case "LIGHT_PURPLE" -> NamedTextColor.LIGHT_PURPLE;
-            case "WHITE" -> NamedTextColor.WHITE;
-            default -> null;
+    private boolean isValidColor(String colorName) {
+        return Arrays.asList("RED", "BLUE", "GREEN", "YELLOW", "AQUA", "DARK_PURPLE", "GOLD", "LIGHT_PURPLE", "WHITE")
+                .contains(colorName);
+    }
+
+    private String getLegacyColor(NamedTextColor color) {
+        if (color == null) return "§f";
+        return switch (color.toString().toUpperCase()) {
+            case "RED" -> "§c";
+            case "GOLD" -> "§6";
+            case "YELLOW" -> "§e";
+            case "GREEN" -> "§a";
+            case "AQUA" -> "§b";
+            case "BLUE" -> "§9";
+            case "DARK_PURPLE" -> "§5";
+            case "LIGHT_PURPLE" -> "§d";
+            case "WHITE" -> "§f";
+            default -> "§f";
         };
     }
 
@@ -194,14 +254,16 @@ public class TeamCommands {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling team list command for " + sender.getName());
         Collection<TeamsManager.Team> teams = teamsManager.getTeams();
         if (teams.isEmpty()) {
-            sender.sendMessage(Component.text("No teams available.").color(NamedTextColor.YELLOW));
+            sendMessage(sender, "No teams available.", "§e");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] No teams available for " + sender.getName());
             return true;
         }
-        sender.sendMessage(Component.text("Teams:").color(NamedTextColor.GOLD));
+        sendMessage(sender, "Teams:", "§6");
         for (TeamsManager.Team team : teams) {
-            sender.sendMessage(Component.text("- " + team.getName()).color(team.getColor()));
-            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Listed team '" + team.getName() + "' with color " + getColorName(team.getColor()));
+            String message = "- " + team.getName();
+            String legacyColor = isAdventureSupported() ? getLegacyColor(team.getNamedTextColor()) : "§f";
+            sendMessage(sender, message, legacyColor);
+            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Listed team '" + team.getName() + "' with color " + team.getColor());
         }
         return true;
     }
@@ -209,19 +271,19 @@ public class TeamCommands {
     private boolean handleTeamRemove(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling team remove command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 3) {
-            sender.sendMessage(Component.text("Usage: /nf team remove <team>").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team remove <team>", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for remove, expected 3");
             return true;
         }
         String teamName = args[2].toLowerCase();
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team name: " + teamName);
         if (!teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team does not exist.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team does not exist.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' does not exist");
             return true;
         }
         teamsManager.removeTeam(teamName);
-        sender.sendMessage(Component.text("Team '" + teamName + "' removed.").color(NamedTextColor.GREEN));
+        sendMessage(sender, "Team '" + teamName + "' removed.", "§a");
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Removed team '" + teamName + "' for " + sender.getName());
         return true;
     }
@@ -229,36 +291,36 @@ public class TeamCommands {
     private boolean handleTeamBlockSelector(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling team block selector command for " + sender.getName() + ": " + String.join(" ", args));
         if (!(sender instanceof Player)) {
-            sender.sendMessage(Component.text("Only players can use this command.").color(NamedTextColor.RED));
+            sendMessage(sender, "Only players can use this command.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Non-player sender attempted block selector command");
             return true;
         }
         if (args.length < 5) {
-            sender.sendMessage(Component.text("Usage: /nf team <team-name> block selector <player>").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team <team-name> block selector <player>", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for block selector, expected 5");
             return true;
         }
         String teamName = args[1].toLowerCase();
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team name: " + teamName);
         if (!teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team '" + teamName + "' does not exist.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team '" + teamName + "' does not exist.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' does not exist");
             return true;
         }
         if (!args[2].equalsIgnoreCase("block") || !args[3].equalsIgnoreCase("selector")) {
-            sender.sendMessage(Component.text("Usage: /nf team <team-name> block selector <player>").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team <team-name> block selector <player>", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid block selector syntax");
             return true;
         }
         Player target = Bukkit.getPlayer(args[4]);
         if (target == null) {
-            sender.sendMessage(Component.text("Player not found or offline.").color(NamedTextColor.RED));
+            sendMessage(sender, "Player not found or offline.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Player '" + args[4] + "' not found or offline");
             return true;
         }
         ItemStack axe = createTeamBlockSelector(teamName);
         target.getInventory().addItem(axe);
-        sender.sendMessage(Component.text("Given team block selector for team '" + teamName + "' to " + target.getName()).color(NamedTextColor.GREEN));
+        sendMessage(sender, "Given team block selector for team '" + teamName + "' to " + target.getName(), "§a");
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Gave block selector for team '" + teamName + "' to " + target.getName());
         return true;
     }
@@ -268,8 +330,16 @@ public class TeamCommands {
         ItemStack axe = new ItemStack(Material.IRON_AXE);
         ItemMeta meta = axe.getItemMeta();
         if (meta != null) {
-            meta.displayName(Component.text(TEAM_BLOCK_SELECTOR_NAME).color(NamedTextColor.GOLD));
-            meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "teamSelector"), PersistentDataType.STRING, teamName);
+            if (isAdventureSupported()) {
+                meta.displayName(Component.text(TEAM_BLOCK_SELECTOR_NAME).color(NamedTextColor.GOLD));
+            } else {
+                meta.setDisplayName("§6" + TEAM_BLOCK_SELECTOR_NAME);
+            }
+            if (isPre114()) {
+                meta.setLore(Collections.singletonList("Team: " + teamName));
+            } else {
+                meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "teamSelector"), PersistentDataType.STRING, teamName);
+            }
             axe.setItemMeta(meta);
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Set item meta for selector: team=" + teamName);
         }
@@ -279,19 +349,19 @@ public class TeamCommands {
     private boolean handleTeamSetBlock(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling team setblock command for " + sender.getName() + ": " + String.join(" ", args));
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Only players can use this command.").color(NamedTextColor.RED));
+            sendMessage(sender, "Only players can use this command.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Non-player sender attempted setblock command");
             return true;
         }
         if (args.length != 6) {
-            sender.sendMessage(Component.text("Usage: /nf team <team-name> setblock <x> <y> <z>").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team <team-name> setblock <x> <y> <z>", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for setblock, expected 6");
             return true;
         }
         String teamName = args[1].toLowerCase();
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team name: " + teamName);
         if (!teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team '" + teamName + "' does not exist.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team '" + teamName + "' does not exist.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' does not exist");
             return true;
         }
@@ -302,7 +372,7 @@ public class TeamCommands {
             z = Integer.parseInt(args[5]);
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Parsed coordinates: x=" + x + ", y=" + y + ", z=" + z);
         } catch (NumberFormatException e) {
-            sender.sendMessage(Component.text("Coordinates must be numbers.").color(NamedTextColor.RED));
+            sendMessage(sender, "Coordinates must be numbers.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid coordinates: " + String.join(" ", Arrays.copyOfRange(args, 3, args.length)));
             return true;
         }
@@ -310,12 +380,12 @@ public class TeamCommands {
         Location loc = new Location(world, x, y, z);
         Block block = world.getBlockAt(loc);
         if (block.getType() != teamsManager.getTeamBlockMaterial()) {
-            sender.sendMessage(Component.text("Block at location is not the configured team block (" + teamsManager.getTeamBlockMaterial() + ").").color(NamedTextColor.RED));
+            sendMessage(sender, "Block at location is not the configured team block (" + teamsManager.getTeamBlockMaterial() + ").", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Block at " + formatLocation(loc) + " is " + block.getType() + ", expected " + teamsManager.getTeamBlockMaterial());
             return true;
         }
         teamsManager.setLodestone(teamName, loc);
-        player.sendMessage(Component.text("Lodestone set for team '" + teamName + "' at " + x + " " + y + " " + z).color(NamedTextColor.GREEN));
+        sendMessage(sender, "Lodestone set for team '" + teamName + "' at " + x + " " + y + " " + z, "§a");
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Set lodestone for team '" + teamName + "' at " + formatLocation(loc));
         return true;
     }
@@ -336,19 +406,19 @@ public class TeamCommands {
     private boolean handleUserTeamAdd(CommandSender sender, OfflinePlayer target, String teamName) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling user team add for " + sender.getName() + ": player=" + target.getName() + ", team=" + teamName);
         if (!teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team does not exist.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team does not exist.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' does not exist");
             return true;
         }
         if (teamsManager.addMember(teamName, target.getUniqueId())) {
-            sender.sendMessage(Component.text("Added " + target.getName() + " to team " + teamName).color(NamedTextColor.GREEN));
+            sendMessage(sender, "Added " + target.getName() + " to team " + teamName, "§a");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Added " + target.getName() + " to team '" + teamName + "'");
             if (target.isOnline()) {
-                ((Player) target).sendMessage(Component.text("You have been added to team " + teamName).color(NamedTextColor.GREEN));
+                sendMessage((Player) target, "You have been added to team " + teamName, "§a");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Notified " + target.getName() + " of team addition");
             }
         } else {
-            sender.sendMessage(Component.text(target.getName() + " is already in the team or error occurred.").color(NamedTextColor.RED));
+            sendMessage(sender, target.getName() + " is already in the team or error occurred.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Failed to add " + target.getName() + " to team '" + teamName + "', already in team or error");
         }
         return true;
@@ -357,19 +427,19 @@ public class TeamCommands {
     private boolean handleUserTeamRemove(CommandSender sender, OfflinePlayer target, String teamName) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling user team remove for " + sender.getName() + ": player=" + target.getName() + ", team=" + teamName);
         if (!teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team does not exist.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team does not exist.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' does not exist");
             return true;
         }
         if (teamsManager.removeMember(teamName, target.getUniqueId())) {
-            sender.sendMessage(Component.text("Removed " + target.getName() + " from team " + teamName).color(NamedTextColor.GREEN));
+            sendMessage(sender, "Removed " + target.getName() + " from team " + teamName, "§a");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Removed " + target.getName() + " from team '" + teamName + "'");
             if (target.isOnline()) {
-                ((Player) target).sendMessage(Component.text("You have been removed from team " + teamName).color(NamedTextColor.RED));
+                sendMessage((Player) target, "You have been removed from team " + teamName, "§c");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Notified " + target.getName() + " of team removal");
             }
         } else {
-            sender.sendMessage(Component.text(target.getName() + " is not in the team or error occurred.").color(NamedTextColor.RED));
+            sendMessage(sender, target.getName() + " is not in the team or error occurred.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Failed to remove " + target.getName() + " from team '" + teamName + "', not in team or error");
         }
         return true;
@@ -387,14 +457,14 @@ public class TeamCommands {
         }
 
         if (playerTeams.isEmpty()) {
-            sender.sendMessage(Component.text(target.getName() + " is not in any team.").color(NamedTextColor.YELLOW));
+            sendMessage(sender, target.getName() + " is not in any team.", "§e");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] No teams found for " + target.getName());
             return true;
         }
 
-        sender.sendMessage(Component.text(target.getName() + "'s teams:").color(NamedTextColor.GOLD));
+        sendMessage(sender, target.getName() + "'s teams:", "§6");
         for (String team : playerTeams) {
-            sender.sendMessage(Component.text("- " + team).color(NamedTextColor.WHITE));
+            sendMessage(sender, "- " + team, "§f");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Listed team '" + team + "' for " + target.getName());
         }
         return true;
@@ -403,7 +473,7 @@ public class TeamCommands {
     public void onTeamBlockSelectorUse(Player player, Block block) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Player " + player.getName() + " used team block selector on block at " + formatLocation(block.getLocation()));
         if (block.getType() != teamsManager.getTeamBlockMaterial()) {
-            player.sendMessage(Component.text("This block is not the configured team block (" + teamsManager.getTeamBlockMaterial() + ").").color(NamedTextColor.RED));
+            sendMessage(player, "This block is not the configured team block (" + teamsManager.getTeamBlockMaterial() + ").", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Block at " + formatLocation(block.getLocation()) + " is " + block.getType() + ", expected " + teamsManager.getTeamBlockMaterial());
             return;
         }
@@ -419,22 +489,33 @@ public class TeamCommands {
             return;
         }
 
-        String teamName = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "teamSelector"), PersistentDataType.STRING);
-        if (teamName == null) {
-            player.sendMessage(Component.text("This selector is invalid (missing team info)").color(NamedTextColor.RED));
-            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Selector missing team info");
-            return;
+        String teamName;
+        if (isPre114()) {
+            List<String> lore = meta.getLore();
+            if (lore == null || lore.isEmpty() || !lore.get(0).startsWith("Team: ")) {
+                sendMessage(player, "This selector is invalid (missing team info)", "§c");
+                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Selector missing team info in lore");
+                return;
+            }
+            teamName = lore.get(0).substring(6);
+        } else {
+            teamName = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "teamSelector"), PersistentDataType.STRING);
+            if (teamName == null) {
+                sendMessage(player, "This selector is invalid (missing team info)", "§c");
+                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Selector missing team info");
+                return;
+            }
         }
 
         if (!teamsManager.teamExists(teamName)) {
-            player.sendMessage(Component.text("Team '" + teamName + "' no longer exists").color(NamedTextColor.RED));
+            sendMessage(player, "Team '" + teamName + "' no longer exists", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' no longer exists");
             return;
         }
 
         teamsManager.setLodestone(teamName, block.getLocation());
-        player.sendMessage(Component.text("Team lodestone for '" + teamName + "' set at " +
-                block.getX() + ", " + block.getY() + ", " + block.getZ()).color(NamedTextColor.GREEN));
+        sendMessage(player, "Team lodestone for '" + teamName + "' set at " +
+                block.getX() + ", " + block.getY() + ", " + block.getZ(), "§a");
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Set lodestone for team '" + teamName + "' at " + formatLocation(block.getLocation()));
 
         updatePlayerNametagColor(player, teamName);
@@ -453,9 +534,21 @@ public class TeamCommands {
 
         if (scoreboardTeam == null) {
             scoreboardTeam = scoreboard.registerNewTeam(teamName);
-            scoreboardTeam.color(team.getColor());
             scoreboardTeam.setDisplayName(teamName);
-            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Registered new scoreboard team '" + teamName + "' with color " + getColorName(team.getColor()));
+            if (isPre113()) {
+                ChatColor chatColor = parseChatColor(team.getColor());
+                if (chatColor != null) {
+                    scoreboardTeam.setColor(chatColor);
+                    ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Set scoreboard team color to " + chatColor + " for team '" + teamName + "' (1.12)");
+                }
+            } else {
+                NamedTextColor namedColor = team.getNamedTextColor();
+                if (namedColor != null) {
+                    scoreboardTeam.color(namedColor);
+                    ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Set scoreboard team color to " + namedColor + " for team '" + teamName + "' (1.13+)");
+                }
+            }
+            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Registered new scoreboard team '" + teamName + "' with color " + team.getColor());
         }
 
         for (UUID memberUUID : team.getMembers()) {
@@ -467,14 +560,29 @@ public class TeamCommands {
         }
 
         player.setScoreboard(scoreboard);
-        player.sendMessage(Component.text("Nametag color updated for team '" + teamName + "'").color(NamedTextColor.GREEN));
+        sendMessage(player, "Nametag color updated for team '" + teamName + "'", "§a");
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Updated nametag color for " + player.getName() + " in team '" + teamName + "'");
+    }
+
+    private ChatColor parseChatColor(String colorName) {
+        return switch (colorName) {
+            case "RED" -> ChatColor.RED;
+            case "GOLD" -> ChatColor.GOLD;
+            case "YELLOW" -> ChatColor.YELLOW;
+            case "GREEN" -> ChatColor.GREEN;
+            case "AQUA" -> ChatColor.AQUA;
+            case "BLUE" -> ChatColor.BLUE;
+            case "DARK_PURPLE" -> ChatColor.DARK_PURPLE;
+            case "LIGHT_PURPLE" -> ChatColor.LIGHT_PURPLE;
+            case "WHITE" -> ChatColor.WHITE;
+            default -> null;
+        };
     }
 
     private boolean handleTeamMetaColor(CommandSender sender, String[] args) {
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Handling team meta color command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 5) {
-            sender.sendMessage(Component.text("Usage: /nf team meta <team-name> color <get|set> [color]").color(NamedTextColor.RED));
+            sendMessage(sender, "Usage: /nf team meta <team-name> color <get|set> [color]", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for meta color, expected at least 5");
             return true;
         }
@@ -482,7 +590,7 @@ public class TeamCommands {
         String teamName = args[2].toLowerCase();
         ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team name: " + teamName);
         if (!teamsManager.teamExists(teamName)) {
-            sender.sendMessage(Component.text("Team '" + teamName + "' does not exist.").color(NamedTextColor.RED));
+            sendMessage(sender, "Team '" + teamName + "' does not exist.", "§c");
             ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Team '" + teamName + "' does not exist");
             return true;
         }
@@ -493,26 +601,27 @@ public class TeamCommands {
 
         switch (action) {
             case "get" -> {
-                sender.sendMessage(Component.text("Team '" + teamName + "' color: " + getColorName(team.getColor())).color(team.getColor()));
-                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Retrieved color " + getColorName(team.getColor()) + " for team '" + teamName + "'");
+                sendMessage(sender, "Team '" + teamName + "' color: " + team.getColor(),
+                        isAdventureSupported() ? getLegacyColor(team.getNamedTextColor()) : "§f");
+                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Retrieved color " + team.getColor() + " for team '" + teamName + "'");
                 return true;
             }
             case "set" -> {
                 if (args.length < 6) {
-                    sender.sendMessage(Component.text("Usage: /nf team meta <team-name> color set <color>").color(NamedTextColor.RED));
+                    sendMessage(sender, "Usage: /nf team meta <team-name> color set <color>", "§c");
                     ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for meta color set, expected 6");
                     return true;
                 }
                 String newColorName = args[5].toUpperCase();
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] New color: " + newColorName);
-                NamedTextColor newColor = parseColor(newColorName);
-                if (newColor == null) {
-                    sender.sendMessage(Component.text("Invalid color. Valid colors: RED, BLUE, GREEN, YELLOW, AQUA, DARK_PURPLE, GOLD, LIGHT_PURPLE, WHITE").color(NamedTextColor.RED));
+                if (!isValidColor(newColorName)) {
+                    sendMessage(sender, "Invalid color. Valid colors: RED, BLUE, GREEN, YELLOW, AQUA, DARK_PURPLE, GOLD, LIGHT_PURPLE, WHITE", "§c");
                     ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid color: " + newColorName);
                     return true;
                 }
-                team.setColor(newColor);
-                sender.sendMessage(Component.text("Team '" + teamName + "' color updated to " + newColorName).color(newColor));
+                team.setColor(newColorName);
+                sendMessage(sender, "Team '" + teamName + "' color updated to " + newColorName,
+                        isAdventureSupported() ? getLegacyColor(team.getNamedTextColor()) : "§f");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Updated color for team '" + teamName + "' to " + newColorName);
 
                 for (UUID memberUUID : team.getMembers()) {
@@ -525,24 +634,11 @@ public class TeamCommands {
                 return true;
             }
             default -> {
-                sender.sendMessage(Component.text("Unknown color action. Use get or set.").color(NamedTextColor.RED));
+                sendMessage(sender, "Unknown color action. Use get or set.", "§c");
                 ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Unknown color action: " + action);
                 return true;
             }
         }
-    }
-
-    private String getColorName(NamedTextColor color) {
-        if (color.equals(NamedTextColor.RED)) return "RED";
-        if (color.equals(NamedTextColor.GOLD)) return "GOLD";
-        if (color.equals(NamedTextColor.YELLOW)) return "YELLOW";
-        if (color.equals(NamedTextColor.GREEN)) return "GREEN";
-        if (color.equals(NamedTextColor.AQUA)) return "AQUA";
-        if (color.equals(NamedTextColor.BLUE)) return "BLUE";
-        if (color.equals(NamedTextColor.DARK_PURPLE)) return "DARK_PURPLE";
-        if (color.equals(NamedTextColor.LIGHT_PURPLE)) return "LIGHT_PURPLE";
-        if (color.equals(NamedTextColor.WHITE)) return "WHITE";
-        return "UNKNOWN";
     }
 
     /**
