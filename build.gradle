@@ -1,162 +1,28 @@
 plugins {
-    id 'checkstyle'
-    id 'com.github.spotbugs' version '6.1.7'
-    id 'com.gradleup.shadow' version '8.3.6'
     id 'java'
+    id "com.gradleup.shadow" version "8.3.6"
 }
 
-group = 'com.crimsonwarpedcraft.nakedandafraid'
+subprojects {
+    apply plugin: 'java'
 
-
-import com.github.spotbugs.snom.SpotBugsReport
-import com.github.spotbugs.snom.SpotBugsTask
-
-import java.text.SimpleDateFormat
-
-// Returns the current UTC timestamp in the format yyMMdd-HHmm
-static def getTime() {
-    def sdf = new SimpleDateFormat('yyMMdd-HHmm')
-    sdf.setTimeZone(TimeZone.getTimeZone('UTC'))
-    return sdf.format(new Date())
-}
-
-// Set version based on 'ver' property or fallback to timestamp with -SNAPSHOT
-// Set version to version property if supplied
-String shortVersion = null
-if (hasProperty('ver')) {
-    if (ver.charAt(0) == "v") {
-        shortVersion = ver.substring(1).toUpperCase()
-    } else {
-        shortVersion = ver.toUpperCase()
-    }
-}
-
-// If the tag includes "-RC-" or no tag is supplied, append "-SNAPSHOT"
-int rcIdx
-if (shortVersion == null || shortVersion == "") {
-    version = getTime() + "-SNAPSHOT"
-} else if ((rcIdx = shortVersion.indexOf("-RC-")) != -1) {
-    version = shortVersion.substring(0, rcIdx) + "-SNAPSHOT"
-} else {
-    version = shortVersion
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
-repositories {
-    maven {
-        name = 'papermc'
-        url = 'https://repo.papermc.io/repository/maven-public/'
-        content {
-            includeModule('io.papermc.paper', 'paper-api')
-            includeModule('io.papermc', 'paperlib')
-            includeModule('net.md-5', 'bungeecord-chat')
+    allprojects {
+        repositories {
+            maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+            maven { url = 'https://repo.papermc.io/repository/maven-snapshots/' }
+            maven { url = 'https://jitpack.io' }
+            mavenCentral()
         }
     }
-    maven {
-        name = 'minecraft'
-        url = 'https://libraries.minecraft.net'
-        content {
-            includeModule('com.mojang', 'brigadier')
-        }
-    }
-    mavenCentral()
-}
 
-configurations {
-    server
-    pluginRuntime
-}
-
-dependencies {
-    compileOnly 'io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT'
-    compileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.3'
-    implementation 'io.papermc:paperlib:1.0.8'
-    compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
-    pluginRuntime 'net.dmulloy2:ProtocolLib:5.4.0'
-    spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.13.0'
-    testCompileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.3'
-    testImplementation 'io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
-    server "io.papermc.paper:paper:1.21.8-R0.1-SNAPSHOT"
-    implementation 'org.snakeyaml:snakeyaml-engine:2.8'
-}
-
-test {
-    useJUnitPlatform()
-}
-
-processResources {
-    filesMatching('**/plugin.yml') {
-        expand(
-                NAME: rootProject.name,
-                VERSION: version,
-                PACKAGE: project.group.toString()
-        )
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
     }
 }
 
-checkstyle {
-    toolVersion = '10.20.1'
-    maxWarnings = 0
-}
-
-configurations.checkstyle {
-    resolutionStrategy.capabilitiesResolution.withCapability('com.google.collections:google-collections') {
-        select('com.google.guava:guava:23.0')
-    }
-}
-
-tasks.withType(Checkstyle).configureEach {
-    // Disable Checkstyle to prevent build failures
-    enabled = false
-    reports {
-        xml.required = false
-        html.required = true
-    }
-}
-
-tasks.withType(SpotBugsTask).configureEach {
-    // Disable SpotBugs to prevent build failures
-    enabled = false
-    reports(({
-        html { required = true }
-        xml { required = false }
-    } as Closure<NamedDomainObjectContainer<? extends SpotBugsReport>>))
-}
-
-shadowJar {
-    archiveClassifier.set('')
-    relocate 'io.papermc.lib', 'shadow.io.papermc.paperlib'
-    minimize()
-}
-
-jar.enabled = false
-assemble.dependsOn(shadowJar)
-
-tasks.register('printProjectName') {
-    doLast {
-        println rootProject.name
-    }
-}
-
-tasks.register('release') {
-    dependsOn build
-    doLast {
-        if (!version.endsWith('-SNAPSHOT')) {
-            shadowJar.archiveFile.get().asFile.renameTo(
-                    file("${layout.buildDirectory.get()}/libs/${rootProject.name}.jar")
-            )
-        }
-    }
-}
-
-// Include external Gradle logic if the file exists
-def serverSetupFile = file('gradle/server-setup.gradle')
-if (serverSetupFile.exists()) {
-    apply from: serverSetupFile
+tasks.register("shadowAll", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    archiveClassifier.set("")
+    from(project(":common").sourceSets.main.output)
+    from(project(":v1_17").sourceSets.main.output)
+    from(project(":v1_21").sourceSets.main.output)
 }

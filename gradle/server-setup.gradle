@@ -21,7 +21,7 @@ tasks.register('setupServer') {
     doLast {
         file("$testServerDir/eula.txt").text = "eula=true"
 
-        def versionedPluginName = "NakedAndAfraid-1.1.4a.jar"
+        def versionedPluginName = "NakedAndAfraid-1.1.5.jar"
         copy {
             from shadowJar.archiveFile
             into "$testServerDir/plugins"

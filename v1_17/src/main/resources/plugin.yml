@@ -1,0 +1,31 @@
+main: com.crimsonwarpedcraft.nakedandafraid.NakedAndAfraid
+name: NakedAndAfraid
+version: "1.1.4a"
+api-version: "1.17"
+author: TheRealKushi
+description: >
+  A plugin that recreates the functions from the Naked and Afraid YouTube series.
+softdepend: [Paper, kyori-adventure]
+
+commands:
+  nf:
+    description: Sends the list of commands the NakedAndAfraid plugin uses.
+    usage: "/nf help"
+    aliases: nakedafraid
+
+permissions:
+  nakedandafraid.reload:
+    description: Allows for reloading the NakedAndAfraid plugin.
+    default: op
+
+  nakedandafraid.spawn:
+    description: Allows using spawn-related commands.
+    default: op
+
+  nakedandafraid.team:
+    description: Allows using team-related commands.
+    default: op
+
+  nakedandafraid.user:
+    description: Allows using user-related commands.
+    default: op
