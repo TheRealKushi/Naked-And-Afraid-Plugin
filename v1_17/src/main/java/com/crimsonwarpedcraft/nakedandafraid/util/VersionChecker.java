@@ -98,7 +98,6 @@ public class VersionChecker {
             plugin.debugLog("[VersionChecker] No latest version available, assuming not outdated");
             return false;
         }
-        // Normalize versions (remove 'v' prefix if present)
         var normalizedLatest = latest.startsWith("v") ? latest.substring(1) : latest;
         var normalizedCurrent = currentVersion.startsWith("v") ? currentVersion.substring(1) : currentVersion;
         boolean outdated = !normalizedLatest.equalsIgnoreCase(normalizedCurrent);

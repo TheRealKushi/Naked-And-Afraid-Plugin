@@ -159,7 +159,6 @@ public class ArmorDamageListener implements Listener {
             }
         }
 
-        // Manage polling task based on current config
         if (shouldPoll()) {
             if (pollingTask == null) {
                 startPollingTask();
@@ -246,7 +245,6 @@ public class ArmorDamageListener implements Listener {
             return false;
         }
 
-        // Check armor slots
         int slotIndex = 0;
         String[] slotNames = {"BOOTS", "LEGGINGS", "CHESTPLATE", "HELMET"}; // Order matches armorContents
         for (ItemStack armor : armorContents) {

@@ -58,10 +58,9 @@ public class ChatRestrictionListener implements Listener {
     @EventHandler
     public void onPlayerChat(AsyncChatEvent event) {
         if (!isPaperChatSupported()) {
-            return; // Ignore if not Paper 1.19+
+            return;
         }
         Player player = event.getPlayer();
-        // Check if world is enabled
         if (!plugin.isWorldEnabled(player.getWorld().getName())) {
             plugin.debugLog("[ChatRestrictionListener] Skipped AsyncChatEvent for player " + player.getName() +
                     " in disabled world " + player.getWorld().getName());
@@ -85,10 +84,9 @@ public class ChatRestrictionListener implements Listener {
     @EventHandler
     public void onPlayerChatLegacy(AsyncPlayerChatEvent event) {
         if (isPaperChatSupported()) {
-            return; // Ignore if Paper 1.19+ is active
+            return;
         }
         Player player = event.getPlayer();
-        // Check if world is enabled
         if (!plugin.isWorldEnabled(player.getWorld().getName())) {
             plugin.debugLog("[ChatRestrictionListener] Skipped AsyncPlayerChatEvent for player " + player.getName() +
                     " in disabled world " + player.getWorld().getName());

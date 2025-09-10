@@ -1,42 +1,101 @@
-// server-setup.gradle
-def testServerDir = file("$buildDir/test-server")
-def paperVersion = '1.21.8'
-def paperBuild = '58'
+// gradle/server-setup.gradle
 
-tasks.register('downloadPaperServer') {
+// Configuration for Paper versions
+def paperVersions = [
+        'v1_17': [
+                version: '1.17.1',
+                build: '394',
+                url: 'https://api.papermc.io/v2/projects/paper/versions/1.17.1/builds/394/downloads/paper-1.17.1-394.jar'
+        ],
+        'v1_21': [
+                version: '1.21.8',
+                build: '58',
+                url: 'https://fill-data.papermc.io/v1/objects/d2f29b6d3c945479de8271ea56e8f7935fceec021edaafcbbaf2a8c09f4a5d67/paper-1.21.8-58.jar'
+        ]
+]
+
+// Define server directories
+def testServerDirV1_17 = file("$buildDir/test-server-1.17")
+def testServerDirV1_21 = file("$buildDir/test-server-1.21")
+
+// Task to download Paper for 1.17
+tasks.register('downloadPaperServerV1_17') {
     doLast {
-        testServerDir.mkdirs()
-        def serverJar = new File(testServerDir, "paper.jar")
+        testServerDirV1_17.mkdirs()
+        def serverJar = new File(testServerDirV1_17, 'paper.jar')
         if (!serverJar.exists()) {
-            println "Downloading Paper $paperVersion build $paperBuild..."
-            new URL("https://fill-data.papermc.io/v1/objects/d2f29b6d3c945479de8271ea56e8f7935fceec021edaafcbbaf2a8c09f4a5d67/paper-1.21.8-58.jar").withInputStream { i ->
+            println "Downloading Paper ${paperVersions['v1_17'].version} build ${paperVersions['v1_17'].build}..."
+            new URL(paperVersions['v1_17'].url).withInputStream { i ->
                 serverJar.withOutputStream { it << i }
             }
         }
     }
 }
 
-tasks.register('setupServer') {
-    dependsOn shadowJar, downloadPaperServer
+// Task to download Paper for 1.21
+tasks.register('downloadPaperServerV1_21') {
     doLast {
-        file("$testServerDir/eula.txt").text = "eula=true"
+        testServerDirV1_21.mkdirs()
+        def serverJar = new File(testServerDirV1_21, 'paper.jar')
+        if (!serverJar.exists()) {
+            println "Downloading Paper ${paperVersions['v1_21'].version} build ${paperVersions['v1_21'].build}..."
+            new URL(paperVersions['v1_21'].url).withInputStream { i ->
+                serverJar.withOutputStream { it << i }
+            }
+        }
+    }
+}
 
-        def versionedPluginName = "NakedAndAfraid-1.1.5.jar"
+// Task to set up server for 1.17
+tasks.register('setupServerV1_17') {
+    dependsOn tasks.named('shadowV1_17'), tasks.named('downloadPaperServerV1_17')
+    doLast {
+        testServerDirV1_17.mkdirs()
+        file("$testServerDirV1_17/eula.txt").text = 'eula=true'
+
         copy {
-            from shadowJar.archiveFile
-            into "$testServerDir/plugins"
-            rename { versionedPluginName }
+            from tasks.named('shadowV1_17').get().archiveFile
+            into "$testServerDirV1_17/plugins"
+            rename { "NakedAndAfraid-1.17.jar" }
         }
 
-        def opsFile = file("$testServerDir/ops.json")
-        def playerName = "TheRealKushi"
-        def uuid = "d53d704e-5293-4cad-96ef-569dca9cc242"
+        def opsFile = file("$testServerDirV1_17/ops.json")
+        def playerName = 'TheRealKushi'
+        def uuid = 'd53d704e-5293-4cad-96ef-569dca9cc242'
         opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
     }
 }
 
-tasks.register('runServer', Exec) {
-    dependsOn setupServer
-    workingDir testServerDir
+// Task to set up server for 1.21
+tasks.register('setupServerV1_21') {
+    dependsOn tasks.named('shadowV1_21'), tasks.named('downloadPaperServerV1_21')
+    doLast {
+        testServerDirV1_21.mkdirs()
+        file("$testServerDirV1_21/eula.txt").text = 'eula=true'
+
+        copy {
+            from tasks.named('shadowV1_21').get().archiveFile
+            into "$testServerDirV1_21/plugins"
+            rename { "NakedAndAfraid-1.21.jar" }
+        }
+
+        def opsFile = file("$testServerDirV1_21/ops.json")
+        def playerName = 'TheRealKushi'
+        def uuid = 'd53d704e-5293-4cad-96ef-569dca9cc242'
+        opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
+    }
+}
+
+// Task to run server for 1.17
+tasks.register('runServerV1_17', Exec) {
+    dependsOn tasks.named('setupServerV1_17')
+    workingDir testServerDirV1_17
+    commandLine 'java', '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
+}
+
+// Task to run server for 1.21
+tasks.register('runServerV1_21', Exec) {
+    dependsOn tasks.named('setupServerV1_21')
+    workingDir testServerDirV1_21
     commandLine 'java', '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
 }

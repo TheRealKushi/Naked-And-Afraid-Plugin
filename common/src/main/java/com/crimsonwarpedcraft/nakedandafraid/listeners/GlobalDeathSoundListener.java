@@ -57,7 +57,6 @@ public class GlobalDeathSoundListener implements Listener {
             } catch (Exception e) {
                 plugin.debugLog("[GlobalDeathSoundListener] Failed to play sound for " + player.getName() +
                         ": " + e.getMessage());
-                // Fallback to alternative sound
                 try {
                     player.playSound(
                             player.getLocation(),

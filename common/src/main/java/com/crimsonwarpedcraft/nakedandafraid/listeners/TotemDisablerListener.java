@@ -28,7 +28,7 @@ import java.lang.reflect.Method;
  * - For custom conditions (e.g., disable only in certain worlds), add checks like
  *   !player.getWorld().getName().equals("allowed_world").
  * - Uses reflection to avoid direct import of Paper-specific PlayerTotemDeathEvent.
- * - If reflection fails or you need separate versions, split into Paper (1.17+) and Spigot (1.12–1.16.5) classes.
+ * - If reflection fails, or you need separate versions, split into Paper (1.17+) and Spigot (1.12–1.16.5) classes.
  */
 public class TotemDisablerListener implements Listener {
 
@@ -44,7 +44,6 @@ public class TotemDisablerListener implements Listener {
             return;
         }
 
-        // Attempt to register PlayerTotemDeathEvent for Paper 1.17+
         if (registerTotemDeathEvent()) {
             totemEventRegistered = true;
             plugin.debugLog("[TotemDisablerListener] Successfully registered PlayerTotemDeathEvent (Paper 1.17+ detected).");
@@ -52,7 +51,6 @@ public class TotemDisablerListener implements Listener {
             plugin.debugLog("[TotemDisablerListener] Using EntityDamageEvent fallback for Spigot or pre-1.17.");
         }
 
-        // Register EntityDamageEvent for fallback
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
@@ -60,11 +58,9 @@ public class TotemDisablerListener implements Listener {
      * Attempts to register PlayerTotemDeathEvent using reflection for Paper 1.17+ compatibility.
      * Returns true if registration succeeds.
      */
-    @SuppressWarnings("unchecked") // Suppress unchecked cast warning for totemEventClass
     private boolean registerTotemDeathEvent() {
         try {
             Class<?> totemEventClass = Class.forName("com.destroystokyo.paper.event.player.PlayerTotemDeathEvent");
-            // Verify that totemEventClass extends org.bukkit.event.Event
             if (!Event.class.isAssignableFrom(totemEventClass)) {
                 plugin.debugLog("[TotemDisablerListener] PlayerTotemDeathEvent does not extend org.bukkit.event.Event.");
                 return false;
@@ -86,7 +82,7 @@ public class TotemDisablerListener implements Listener {
             };
 
             plugin.getServer().getPluginManager().registerEvent(
-                    (Class<? extends Event>) totemEventClass, // Safe cast after verification
+                    (Class<? extends Event>) totemEventClass,
                     this,
                     EventPriority.NORMAL,
                     executor,
@@ -105,7 +101,6 @@ public class TotemDisablerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onEntityDamage(EntityDamageEvent event) {
-        // Skip if Paper event is registered (1.17+ Paper, Folia, Purpur)
         if (totemEventRegistered) {
             plugin.debugLog("[TotemDisablerListener] Skipping EntityDamageEvent due to PlayerTotemDeathEvent usage.");
             return;
