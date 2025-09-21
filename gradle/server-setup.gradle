@@ -1,11 +1,18 @@
-// gradle/server-setup.gradle
+import groovy.json.JsonOutput
 
-// Configuration for Paper versions
+import java.util.concurrent.ThreadLocalRandom
+
+// Paper configuration
 def paperVersions = [
+        'v1_8' : [
+                version: '1.8.8',
+                build: '445',
+                url: 'https://fill-data.papermc.io/v1/objects/7ff6d2cec671ef0d95b3723b5c92890118fb882d73b7f8fa0a2cd31d97c55f86/paper-1.8.8-445.jar'
+        ],
         'v1_17': [
                 version: '1.17.1',
                 build: '394',
-                url: 'https://api.papermc.io/v2/projects/paper/versions/1.17.1/builds/394/downloads/paper-1.17.1-394.jar'
+                url: 'https://fill-data.papermc.io/v1/objects/6cc1ee2f94253ce10b5374ed85fffc735a97d8f1b64db293683dfa24dd3cc05f/paper-1.17.1-411.jar'
         ],
         'v1_21': [
                 version: '1.21.8',
@@ -14,49 +21,89 @@ def paperVersions = [
         ]
 ]
 
-// Define server directories
+// Directories
+def testServerDirV1_8 = file("$buildDir/test-server-1.8")
 def testServerDirV1_17 = file("$buildDir/test-server-1.17")
 def testServerDirV1_21 = file("$buildDir/test-server-1.21")
 
-// Task to download Paper for 1.17
+// Java executable lookup
+def getJavaExecutable(int javaVersion) {
+    def javaPaths = [
+            '8' : 'C:\\Users\\danie\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-8.0.462.8-hotspot\\bin\\java.exe',
+            '17': 'C:\\Users\\danie\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot\\bin\\java.exe',
+            '21': 'C:\\Users\\danie\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-21.0.7.6-hotspot\\bin\\java.exe'
+    ]
+    def javaPath = javaPaths[javaVersion.toString()]
+    if (javaPath && file(javaPath).exists()) {
+        println "Using Java ${javaVersion} from path: ${javaPath}"
+        return javaPath
+    }
+    throw new GradleException("Java ${javaVersion} executable not found at ${javaPath}.")
+}
+
+// Download Paper tasks
+tasks.register('downloadPaperServerV1_8') {
+    outputs.file file("$testServerDirV1_8/paper.jar")
+    doLast {
+        testServerDirV1_8.mkdirs()
+        def paperJar = file("$testServerDirV1_8/paper.jar")
+        if (!paperJar.exists()) {
+            println "Downloading Paper 1.8.8..."
+            new URL(paperVersions['v1_8'].url).withInputStream { i -> paperJar.withOutputStream { it << i } }
+        }
+    }
+}
 tasks.register('downloadPaperServerV1_17') {
+    outputs.file file("$testServerDirV1_17/paper.jar")
     doLast {
         testServerDirV1_17.mkdirs()
-        def serverJar = new File(testServerDirV1_17, 'paper.jar')
-        if (!serverJar.exists()) {
-            println "Downloading Paper ${paperVersions['v1_17'].version} build ${paperVersions['v1_17'].build}..."
-            new URL(paperVersions['v1_17'].url).withInputStream { i ->
-                serverJar.withOutputStream { it << i }
-            }
+        def paperJar = file("$testServerDirV1_17/paper.jar")
+        if (!paperJar.exists()) {
+            println "Downloading Paper 1.17.1..."
+            new URL(paperVersions['v1_17'].url).withInputStream { i -> paperJar.withOutputStream { it << i } }
         }
     }
 }
-
-// Task to download Paper for 1.21
 tasks.register('downloadPaperServerV1_21') {
+    outputs.file file("$testServerDirV1_21/paper.jar")
     doLast {
         testServerDirV1_21.mkdirs()
-        def serverJar = new File(testServerDirV1_21, 'paper.jar')
-        if (!serverJar.exists()) {
-            println "Downloading Paper ${paperVersions['v1_21'].version} build ${paperVersions['v1_21'].build}..."
-            new URL(paperVersions['v1_21'].url).withInputStream { i ->
-                serverJar.withOutputStream { it << i }
-            }
+        def paperJar = file("$testServerDirV1_21/paper.jar")
+        if (!paperJar.exists()) {
+            println "Downloading Paper 1.21.8..."
+            new URL(paperVersions['v1_21'].url).withInputStream { i -> paperJar.withOutputStream { it << i } }
         }
     }
 }
 
-// Task to set up server for 1.17
+
+tasks.register('setupServerV1_8') {
+    dependsOn tasks.named('shadowAllVersions'), tasks.named('downloadPaperServerV1_8')
+    doLast {
+        testServerDirV1_8.mkdirs()
+        file("$testServerDirV1_8/eula.txt").text = 'eula=true'
+
+        copy {
+            from tasks.named('shadowAllVersions').get().archiveFile
+            into "$testServerDirV1_8/plugins"
+        }
+
+        def opsFile = file("$testServerDirV1_8/ops.json")
+        def playerName = 'TheRealKushi'
+        def uuid = 'd53d704e-5293-4cad-96ef-569dca9cc242'
+        opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
+    }
+}
+
 tasks.register('setupServerV1_17') {
-    dependsOn tasks.named('shadowV1_17'), tasks.named('downloadPaperServerV1_17')
+    dependsOn tasks.named('shadowAllVersions'), tasks.named('downloadPaperServerV1_17')
     doLast {
         testServerDirV1_17.mkdirs()
         file("$testServerDirV1_17/eula.txt").text = 'eula=true'
 
         copy {
-            from tasks.named('shadowV1_17').get().archiveFile
+            from tasks.named('shadowAllVersions').get().archiveFile
             into "$testServerDirV1_17/plugins"
-            rename { "NakedAndAfraid-1.17.jar" }
         }
 
         def opsFile = file("$testServerDirV1_17/ops.json")
@@ -66,17 +113,15 @@ tasks.register('setupServerV1_17') {
     }
 }
 
-// Task to set up server for 1.21
 tasks.register('setupServerV1_21') {
-    dependsOn tasks.named('shadowV1_21'), tasks.named('downloadPaperServerV1_21')
+    dependsOn tasks.named('shadowAllVersions'), tasks.named('downloadPaperServerV1_21')
     doLast {
         testServerDirV1_21.mkdirs()
         file("$testServerDirV1_21/eula.txt").text = 'eula=true'
 
         copy {
-            from tasks.named('shadowV1_21').get().archiveFile
+            from tasks.named('shadowAllVersions').get().archiveFile
             into "$testServerDirV1_21/plugins"
-            rename { "NakedAndAfraid-1.21.jar" }
         }
 
         def opsFile = file("$testServerDirV1_21/ops.json")
@@ -86,16 +131,104 @@ tasks.register('setupServerV1_21') {
     }
 }
 
-// Task to run server for 1.17
+// Run servers
+tasks.register('runServerV1_8', Exec) {
+    dependsOn tasks.named('setupServerV1_8')
+    workingDir testServerDirV1_8
+    commandLine getJavaExecutable(8), '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
+}
 tasks.register('runServerV1_17', Exec) {
     dependsOn tasks.named('setupServerV1_17')
     workingDir testServerDirV1_17
-    commandLine 'java', '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
+    commandLine getJavaExecutable(17), '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
 }
-
-// Task to run server for 1.21
 tasks.register('runServerV1_21', Exec) {
     dependsOn tasks.named('setupServerV1_21')
     workingDir testServerDirV1_21
-    commandLine 'java', '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
+    commandLine getJavaExecutable(21), '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
+}
+
+// Where to store vanilla clients
+def vanillaClientV1_17 = file("$buildDir/mc-client-1.17.1.jar")
+def vanillaClientV1_21 = file("$buildDir/mc-client-1.21.8.jar")
+
+// Where assets are stored
+def assetsDir = file("$buildDir/assets")
+
+tasks.register('copyClientV1_17') {
+    outputs.file vanillaClientV1_17
+    doLast {
+        copy {
+            from 'libs/1.17.1.jar'
+            into vanillaClientV1_17.parentFile
+            rename { vanillaClientV1_17.name }
+        }
+    }
+}
+
+tasks.register('copyClientV1_21') {
+    outputs.file vanillaClientV1_21
+    doLast {
+        copy {
+            from 'libs/minecraft-1.21.8.jar'
+            into vanillaClientV1_21.parentFile
+            rename { vanillaClientV1_21.name }
+        }
+    }
+}
+
+// Helper to randomize offline names
+static def randomPlayerName() {
+    return "Player" + ThreadLocalRandom.current().nextInt(100, 1000)
+}
+
+// Multiple clients at once: gradlew runClients -Pclients=3
+def numClients = (project.hasProperty("clients") ? project.property("clients").toInteger() : 1)
+
+// --- 1.17 clients ---
+def runClientTasksV1_17 = (1..numClients).collect { i ->
+    tasks.register("runClientV1_17_$i", JavaExec) {
+        dependsOn 'copyClientV1_17'
+        group = 'minecraft'
+        description = "Launch vanilla client 1.17.1 #$i"
+        mainClass = 'net.minecraft.client.main.Main'
+        classpath = files(vanillaClientV1_17)
+        def playerName = randomPlayerName()
+        args '--username', playerName,
+                '--version', '1.17.1',
+                '--accessToken', '0',
+                '--gameDir', file("$buildDir/testclient-1.17-$i"),
+                '--assetsDir', assetsDir,
+                '--width', '854', '--height', '480',
+                '--server', '127.0.0.1', '--port', '25565'
+        jvmArgs '-Xmx1G'
+    }
+}
+
+tasks.register('runClientsV1_17') {
+    dependsOn runClientTasksV1_17
+}
+
+// --- 1.21 clients ---
+def runClientTasksV1_21 = (1..numClients).collect { i ->
+    tasks.register("runClientV1_21_$i", JavaExec) {
+        dependsOn 'copyClientV1_21'
+        group = 'minecraft'
+        description = "Launch vanilla client 1.21.8 #$i"
+        mainClass = 'net.minecraft.client.main.Main'
+        classpath = files(vanillaClientV1_21)
+        def playerName = randomPlayerName()
+        args '--username', playerName,
+                '--version', '1.21.8',
+                '--accessToken', '0',
+                '--gameDir', file("$buildDir/testclient-1.21-$i"),
+                '--assetsDir', assetsDir,
+                '--width', '854', '--height', '480',
+                '--server', '127.0.0.1', '--port', '25565'
+        jvmArgs '-Xmx1G'
+    }
+}
+
+tasks.register('runClientsV1_21') {
+    dependsOn runClientTasksV1_21
 }

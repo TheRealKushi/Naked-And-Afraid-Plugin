@@ -55,20 +55,15 @@ A Minecraft survival plugin for PaperMC/Spigot/Folia/Purpur servers which adds a
 Example configuration options in `config.yml`:
 
 ```yaml
-############################################################
-# +------------------------------------------------------+ #
-# |                       Notes                          | #
-# +------------------------------------------------------+ #
-############################################################
-
-# This is the config file for the Naked And Afraid plugin.
-# This config was generated for version 1.0.0.
+# Configuration for NakedAndAfraid plugin
+# Compatible with Minecraft 1.8–1.21.8.
+# This config file is made for version 2.0.0.
 
 # If you want to use special characters in this document, such as accented letters, you MUST save the file as UTF-8, not ANSI.
 # If you receive an error when the plugin loads, ensure that:
 #   - No tabs are present: YAML only allows spaces
 #   - Indents are correct: YAML hierarchy is based entirely on indentation
-#   - You have "escaped" all apostrophes in your text: If you want to write "don't", for example, write "don''t" instead (note the doubled apostrophe)
+#   - You have "escaped" all apostrophes in your text: If you want to write "don't", for example, write "don''t" instead
 #   - Text with symbols is enclosed in single or double quotation marks
 
 ############################################################
@@ -86,14 +81,30 @@ disable-tab: true
 # A toggle to either enable or disable the player join and quit messages.
 disable-join-quit-messages: true
 
+# A toggle to either enable or disable the totem of undying saving behavior.
+disable-totems: true
+
+# A toggle to either enable or disable the global death sound, that plays for all online players.
+death-sound: true
+
 armor-damage:
-  # A toggle to either enable or disable the function that deals damage when players wear an armor piece.
-  # Offhand will not be accounted in damaging process.
+  # A toggle to either enable or disable the function that deals damage when players wear an armor piece or hold items in offhand.
   enabled: true
   # The amount of hearts the plugin will deal damage (1 heart = 1.0).
   damage-amount: 1.0
   # Value that determines the interval of ticks (1 second = 20 ticks) that the plugin will deal damage to players.
   damage-interval-ticks: 20
+  # List of armor slots that trigger damage (HELMET, CHESTPLATE, LEGGINGS, BOOTS).
+  # Empty counts all armor slots.
+  armor-slot: []
+  # List of armor materials that trigger damage (e.g., LEATHER_HELMET, IRON_CHESTPLATE, DIAMOND_BOOTS, NETHERITE_LEGGINGS).
+  # Empty counts all armor materials.
+  armor-material: []
+  # Whether holding an item in the offhand slot triggers damage.
+  include-offhand: false
+
+# Field that contains a list of all existing worlds (gets updated on server startup), where the plugin can be disabled in certain worlds.
+enabled-worlds: []
 
 # Toggles the debug mode, which provides useful info that can be important for troubleshooting errors.
 debug-mode: false
@@ -110,7 +121,7 @@ max-spawns: 20
 enable-countdown: true
 # Value that determines the duration of the cooldown (in seconds).
 countdown-duration: 10
-# Color Value that determines the cooldown bossbar's color - see Minecraft Formatting Codes for help.
+# Color Value that determines the countdown bossbar's color. Valid values: BLUE, GREEN, PINK, PURPLE, RED, WHITE, YELLOW.
 countdown-color: RED
 # Value that determines whether the player will be frozen in place until cooldown is over.
 countdown-freeze: true
@@ -132,6 +143,8 @@ multiple-spawn-priority: FIRST
 max-teams: 5
 # The block that is used as a Team's Block, and where players have to click to receive their colored nametag.
 team-block: LODESTONE
+
+# End of config
 ```
 
 ## License

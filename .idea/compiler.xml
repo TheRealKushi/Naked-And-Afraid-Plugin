@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel target="17" />
+    <bytecodeTargetLevel target="1.8" />
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="NakedAndAfraid.common" options="-Xlint:-options" />
+      <module name="NakedAndAfraid.common.main" options="-Xlint:-options" />
+      <module name="NakedAndAfraid.common.test" options="-Xlint:-options" />
+    </option>
   </component>
 </project>

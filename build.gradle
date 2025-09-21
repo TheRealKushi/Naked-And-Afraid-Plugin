@@ -1,5 +1,3 @@
-// root/build.gradle
-
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
@@ -11,8 +9,20 @@ subprojects {
     apply plugin: 'java'
 
     repositories {
-        maven { url = 'https://repo.papermc.io/repository/maven-public/' }
-        maven { url = 'https://repo.papermc.io/repository/maven-snapshots/' }
+        maven {
+            name = "papermc-snapshots"
+            url = uri("https://repo.papermc.io/repository/maven-snapshots/")
+            mavenContent {
+                snapshotsOnly()
+            }
+        }
+        maven {
+            name = "papermc-releases"
+            url = uri("https://repo.papermc.io/repository/maven-public/")
+            mavenContent {
+                releasesOnly()
+            }
+        }
         maven { url = 'https://jitpack.io' }
         mavenCentral()
     }
@@ -22,40 +32,41 @@ subprojects {
     }
 }
 
-tasks.register('shadowV1_17', ShadowJar) {
+tasks.register('shadowAllVersions', ShadowJar) {
     group = 'shadow'
-    description = 'Builds a shadow JAR for Minecraft 1.17'
-    archiveClassifier.set('1.17')
+    description = 'Builds a single fat JAR that supports all Minecraft versions'
     archiveBaseName.set('NakedAndAfraid')
-    from(project(':v1_17').sourceSets.main.output)
-    from(project(':common').sourceSets.main.output)
-    configurations = [project(':v1_17').configurations.runtimeClasspath]
-    relocate 'io.papermc.lib', 'com.crimsonwarpedcraft.nakedandafraid.lib.v1_17'
-    manifest {
-        attributes 'Main-Class': 'com.crimsonwarpedcraft.nakedandafraid.v1_17.NakedAndAfraidV1_17'
-    }
-    from(project(':v1_17').sourceSets.main.resources) {
-        include 'plugin.yml'
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
+    def ver = project.hasProperty('ver') ? project.property('ver') : '1.2.0'
+    archiveVersion.set(project.provider { ver } as Provider<? extends String>)
 
-tasks.register('shadowV1_21', ShadowJar) {
-    group = 'shadow'
-    description = 'Builds a shadow JAR for Minecraft 1.21'
-    archiveClassifier.set('1.21')
-    archiveBaseName.set('NakedAndAfraid')
+    // Include classes from version-specific modules and entrypoint
+    from(project(':v1_8').sourceSets.main.output)
+    from(project(':v1_17').sourceSets.main.output)
     from(project(':v1_21').sourceSets.main.output)
-    from(project(':common').sourceSets.main.output)
-    configurations = [project(':v1_21').configurations.runtimeClasspath]
-    relocate 'io.papermc.lib', 'com.crimsonwarpedcraft.nakedandafraid.lib.v1_21'
-    manifest {
-        attributes 'Main-Class': 'com.crimsonwarpedcraft.nakedandafraid.v1_21.NakedAndAfraidV1_21'
-    }
-    from(project(':v1_21').sourceSets.main.resources) {
-        include 'plugin.yml'
-    }
+    from(project(':entrypoint').sourceSets.main.output)
+
+    // Include dependencies
+    configurations = [
+            project(':v1_8').configurations.runtimeClasspath,
+            project(':v1_17').configurations.runtimeClasspath,
+            project(':v1_21').configurations.runtimeClasspath,
+            project(':entrypoint').configurations.runtimeClasspath
+    ].flatten() as List<FileCollection>
+
+    // Relocate external libs if needed (e.g., PaperLib)
+    relocate 'io.papermc.lib', 'com.crimsonwarpedcraft.nakedandafraid.lib'
+
+    // Include only entrypoint/plugin.yml (version ones are deleted, but exclude for safety)
+    from(project(':entrypoint').sourceSets.main.resources) { include 'plugin.yml' }
+    from(project(':v1_8').sourceSets.main.resources) { exclude 'plugin.yml' }
+    from(project(':v1_17').sourceSets.main.resources) { exclude 'plugin.yml' }
+    from(project(':v1_21').sourceSets.main.resources) { exclude 'plugin.yml' }
+
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes 'Main-Class': 'com.crimsonwarpedcraft.nakedandafraid.entrypoint.Main'
+    }
 }
 
 def serverSetupFile = file('gradle/server-setup.gradle')
