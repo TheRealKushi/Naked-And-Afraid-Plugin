@@ -9,15 +9,12 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-repositories {
-    maven { url = uri("https://repo.papermc.io/repository/maven-public/") }
-    mavenCentral()
-}
-
 dependencies {
-    implementation 'io.papermc:paperlib:1.0.8'
-    implementation 'org.jetbrains:annotations:24.1.0'
+    // Only needs the common module (for PluginDelegate) and the Spigot API to compile JavaPlugin
+    implementation project(':common')
+    compileOnly 'org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT'
+    compileOnly 'org.jetbrains:annotations:24.0.0'
+
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
-    compileOnly 'org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT'
+    testRuntimeOnly  'org.junit.platform:junit-platform-launcher:1.12.1'
 }

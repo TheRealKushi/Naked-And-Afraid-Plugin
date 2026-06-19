@@ -40,7 +40,7 @@ public class ArmorDamageListener implements Listener {
 
     public ArmorDamageListener(NakedAndAfraid nakedAndAfraid) {
         this.nakedAndAfraid = nakedAndAfraid;
-        this.plugin = NakedAndAfraid.getPlugin();
+        this.plugin = nakedAndAfraid.getPlugin();
         loadConfigValues();
         nakedAndAfraid.debugLog("[ArmorDamageListener] Initialized ArmorDamageListener for Bukkit version " +
                 Bukkit.getBukkitVersion() + ", PaperArmorChangeSupported: false (legacy Spigot)");

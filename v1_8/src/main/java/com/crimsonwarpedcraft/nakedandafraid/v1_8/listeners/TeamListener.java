@@ -64,7 +64,6 @@ public class TeamListener implements Listener {
 
     @EventHandler
     public void onPlayerUseSelector(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND) return;
         if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
 
         Player player = event.getPlayer();
@@ -86,7 +85,6 @@ public class TeamListener implements Listener {
 
     @EventHandler
     public void onPlayerUseLocatorCompass(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND) return;
         if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR &&
                 event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
 

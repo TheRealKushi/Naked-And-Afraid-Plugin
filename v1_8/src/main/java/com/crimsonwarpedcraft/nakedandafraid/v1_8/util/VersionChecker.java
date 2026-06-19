@@ -55,7 +55,7 @@ public class VersionChecker {
                 return null;
             }
 
-            JsonElement json = JsonParser.parseReader(new InputStreamReader(connection.getInputStream()));
+            JsonElement json = new JsonParser().parse(new InputStreamReader(connection.getInputStream()));
             String version = json.getAsJsonObject().get("tag_name").getAsString();
             plugin.debugLog("[VersionChecker] Successfully parsed GitHub latest version: " + version);
             return version;
@@ -83,7 +83,7 @@ public class VersionChecker {
                 return null;
             }
 
-            JsonElement json = JsonParser.parseReader(new InputStreamReader(connection.getInputStream()));
+            JsonElement json = new JsonParser().parse(new InputStreamReader(connection.getInputStream()));
             JsonElement firstVersion = json.getAsJsonArray().get(0);
             String version = firstVersion.getAsJsonObject().get("version_number").getAsString();
             plugin.debugLog("[VersionChecker] Successfully parsed Modrinth latest version: " + version);

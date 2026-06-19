@@ -17,7 +17,7 @@ public class VersionNotifyListener implements Listener {
 
     public VersionNotifyListener(NakedAndAfraid nakedAndAfraid) {
         this.nakedAndAfraid = nakedAndAfraid;
-        this.plugin = NakedAndAfraid.getPlugin();
+        this.plugin = nakedAndAfraid.getPlugin();
         nakedAndAfraid.debugLog("[VersionNotifyListener] Initialized VersionNotifyListener for Bukkit version " + Bukkit.getBukkitVersion());
     }
 

@@ -8,8 +8,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +15,7 @@ import java.util.*;
 
 public class TeamsManager {
 
-    private final Plugin plugin;
+    private final NakedAndAfraid plugin;
     private final File teamsFile;
     private FileConfiguration teamsConfig;
     private int maxTeams;
@@ -30,9 +28,9 @@ public class TeamsManager {
                     "DARK_PURPLE", "GOLD", "LIGHT_PURPLE", "WHITE"
             ));
 
-    public TeamsManager(Plugin plugin) {
+    public TeamsManager(NakedAndAfraid plugin) {
         this.plugin = plugin;
-        this.teamsFile = new File(plugin.getDataFolder(), "teams.yml");
+        this.teamsFile = new File(plugin.getPlugin().getDataFolder(), "teams.yml");
         debugLog("Initialized TeamsManager for Bukkit version " + Bukkit.getBukkitVersion() +
                 ", teams file: " + teamsFile.getPath());
         loadConfig();
@@ -40,7 +38,7 @@ public class TeamsManager {
 
     private void debugLog(String message) {
         if (plugin.getConfig().getBoolean("debug-mode", false)) {
-            plugin.getLogger().info("[TeamsManager] " + message);
+            plugin.getPlugin().getLogger().info("[TeamsManager] " + message);
         }
     }
 
@@ -73,16 +71,16 @@ public class TeamsManager {
     public void loadConfig() {
         ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Loading teams.yml configuration");
         if (!teamsFile.exists()) {
-            plugin.saveResource("teams.yml", false);
+            plugin.getPlugin().saveResource("teams.yml", false);
             ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Created new teams.yml");
         }
         teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
         ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Loaded teams.yml configuration");
 
-        maxTeams = plugin.getConfig().getInt("max-teams", 10);
+        maxTeams = plugin.getPlugin().getConfig().getInt("max-teams", 10);
         ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Loaded max-teams: " + maxTeams);
 
-        String blockName = plugin.getConfig().getString("team-block", "LODESTONE").toUpperCase(Locale.ENGLISH);
+        String blockName = plugin.getPlugin().getConfig().getString("team-block", "LODESTONE").toUpperCase(Locale.ENGLISH);
         try {
             if (isPre116() && blockName.equals("LODESTONE")) {
                 teamBlockMaterial = Material.OBSIDIAN;
@@ -94,7 +92,7 @@ public class TeamsManager {
         } catch (IllegalArgumentException e) {
             teamBlockMaterial = isPre116() ? Material.OBSIDIAN : Material.BEACON;
             ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Invalid team-block '" + blockName + "', defaulting to " + teamBlockMaterial.name());
-            plugin.getLogger().warning("Invalid team-block material in config.yml, defaulting to " + teamBlockMaterial.name());
+            plugin.getPlugin().getLogger().warning("Invalid team-block material in config.yml, defaulting to " + teamBlockMaterial.name());
         }
 
         teams.clear();
@@ -178,7 +176,7 @@ public class TeamsManager {
             teamsConfig.save(teamsFile);
             ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Successfully saved teams.yml");
         } catch (IOException e) {
-            plugin.getLogger().severe("Could not save teams.yml");
+            plugin.getPlugin().getLogger().severe("Could not save teams.yml");
             ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Failed to save teams.yml: " + e.getMessage());
             e.printStackTrace();
         }
@@ -207,7 +205,7 @@ public class TeamsManager {
                 teamsConfig.save(teamsFile);
                 ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Saved teams.yml after removing teams from disabled worlds");
             } catch (IOException e) {
-                plugin.getLogger().severe("Could not save teams.yml after world refresh");
+                plugin.getPlugin().getLogger().severe("Could not save teams.yml after world refresh");
                 ((NakedAndAfraid) plugin).debugLog("[TeamsManager] Failed to save teams.yml after world refresh: " + e.getMessage());
                 e.printStackTrace();
             }

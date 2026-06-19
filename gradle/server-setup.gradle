@@ -1,5 +1,6 @@
 import groovy.json.JsonOutput
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 
 // Paper configuration
@@ -82,16 +83,35 @@ tasks.register('setupServerV1_8') {
     doLast {
         testServerDirV1_8.mkdirs()
         file("$testServerDirV1_8/eula.txt").text = 'eula=true'
+        def props = file("$testServerDirV1_8/server.properties")
+        if (!props.exists()) {
+            props.text = 'online-mode=false\n'
+        }
 
         copy {
             from tasks.named('shadowAllVersions').get().archiveFile
             into "$testServerDirV1_8/plugins"
         }
 
+        def playerName = "TheRealKushi"
+
+        def offlineUuid = UUID.nameUUIDFromBytes(
+                ("OfflinePlayer:" + playerName)
+                        .getBytes(StandardCharsets.UTF_8)
+        )
+
         def opsFile = file("$testServerDirV1_8/ops.json")
-        def playerName = 'TheRealKushi'
-        def uuid = 'd53d704e-5293-4cad-96ef-569dca9cc242'
-        opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
+
+        opsFile.text = JsonOutput.prettyPrint(
+                JsonOutput.toJson([
+                        [
+                                uuid: offlineUuid.toString(),
+                                name: playerName,
+                                level: 4,
+                                bypassesPlayerLimit: false
+                        ]
+                ])
+        )
     }
 }
 
@@ -100,16 +120,35 @@ tasks.register('setupServerV1_17') {
     doLast {
         testServerDirV1_17.mkdirs()
         file("$testServerDirV1_17/eula.txt").text = 'eula=true'
+        def props = file("$testServerDirV1_17/server.properties")
+        if (!props.exists()) {
+            props.text = 'online-mode=false\n'
+        }
 
         copy {
             from tasks.named('shadowAllVersions').get().archiveFile
             into "$testServerDirV1_17/plugins"
         }
 
+        def playerName = "TheRealKushi"
+
+        def offlineUuid = UUID.nameUUIDFromBytes(
+                ("OfflinePlayer:" + playerName)
+                        .getBytes(StandardCharsets.UTF_8)
+        )
+
         def opsFile = file("$testServerDirV1_17/ops.json")
-        def playerName = 'TheRealKushi'
-        def uuid = 'd53d704e-5293-4cad-96ef-569dca9cc242'
-        opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
+
+        opsFile.text = JsonOutput.prettyPrint(
+                JsonOutput.toJson([
+                        [
+                                uuid: offlineUuid.toString(),
+                                name: playerName,
+                                level: 4,
+                                bypassesPlayerLimit: false
+                        ]
+                ])
+        )
     }
 }
 
@@ -118,16 +157,35 @@ tasks.register('setupServerV1_21') {
     doLast {
         testServerDirV1_21.mkdirs()
         file("$testServerDirV1_21/eula.txt").text = 'eula=true'
+        def props = file("$testServerDirV1_21/server.properties")
+        if (!props.exists()) {
+            props.text = 'online-mode=false\n'
+        }
 
         copy {
             from tasks.named('shadowAllVersions').get().archiveFile
             into "$testServerDirV1_21/plugins"
         }
 
+        def playerName = "TheRealKushi"
+
+        def offlineUuid = UUID.nameUUIDFromBytes(
+                ("OfflinePlayer:" + playerName)
+                        .getBytes(StandardCharsets.UTF_8)
+        )
+
         def opsFile = file("$testServerDirV1_21/ops.json")
-        def playerName = 'TheRealKushi'
-        def uuid = 'd53d704e-5293-4cad-96ef-569dca9cc242'
-        opsFile.text = "[{\"uuid\":\"$uuid\",\"name\":\"$playerName\",\"level\":4,\"bypassesPlayerLimit\":false}]"
+
+        opsFile.text = JsonOutput.prettyPrint(
+                JsonOutput.toJson([
+                        [
+                                uuid: offlineUuid.toString(),
+                                name: playerName,
+                                level: 4,
+                                bypassesPlayerLimit: false
+                        ]
+                ])
+        )
     }
 }
 

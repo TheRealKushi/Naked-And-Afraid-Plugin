@@ -10,15 +10,17 @@ java {
 }
 
 repositories {
+    maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
     maven { url = 'https://repo.papermc.io/repository/maven-snapshots/' }
     maven { url = 'https://repo.stellardrift.ca/repository/snapshots/' }
-    maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
     maven { url = 'https://jitpack.io' }
     mavenCentral()
 }
 
 dependencies {
+    implementation project(':common')
+
     implementation 'io.papermc:paperlib:1.0.8'
     implementation 'com.google.code.gson:gson:2.8.9'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'

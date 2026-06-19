@@ -33,12 +33,15 @@ public class MaterialCompat {
             return Material.valueOf(upperName);
         } catch (IllegalArgumentException e) {
             return switch (upperName) {
+                case "GOLD_HELMET" -> getMaterial("GOLDEN_HELMET", upperName);
+                case "GOLD_CHESTPLATE" -> getMaterial("GOLDEN_CHESTPLATE", upperName);
+                case "GOLD_LEGGINGS" -> getMaterial("GOLDEN_LEGGINGS", upperName);
+                case "GOLD_BOOTS" -> getMaterial("GOLDEN_BOOTS", upperName);
                 case "GOLDEN_HELMET" -> getMaterial("GOLD_HELMET", upperName);
-                case "GOLDEN_CHESTPLATE" -> getMaterial("GOLD_CHESTPLATE", upperName);
+                case "GOLDEN_CHESTPLATE"-> getMaterial("GOLD_CHESTPLATE", upperName);
                 case "GOLDEN_LEGGINGS" -> getMaterial("GOLD_LEGGINGS", upperName);
                 case "GOLDEN_BOOTS" -> getMaterial("GOLD_BOOTS", upperName);
                 case "TOTEM_OF_UNDYING" -> getMaterial("TOTEM", upperName);
-                case "LODESTONE" -> getMaterial("LODESTONE", upperName);
                 default -> null;
             };
         }

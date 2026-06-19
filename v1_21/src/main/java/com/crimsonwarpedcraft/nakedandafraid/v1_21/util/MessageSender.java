@@ -1,4 +1,4 @@
-// V1_17/MessageSender
+// V1_21/MessageSender
 
 package com.crimsonwarpedcraft.nakedandafraid.v1_21.util;
 

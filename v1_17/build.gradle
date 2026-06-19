@@ -1,5 +1,3 @@
-// V_17/build.gradle
-
 plugins {
     id 'java'
 }
@@ -11,22 +9,40 @@ java {
 
 repositories {
     maven {
-        url = uri("https://repo.papermc.io/repository/maven-snapshots/")
+        url = uri("https://repo.papermc.io/repository/maven-public/")
     }
     maven {
-        url = uri("https://repo.papermc.io/repository/maven-public/")
+        url = uri("https://repo.papermc.io/repository/maven-snapshots/")
     }
     maven { url = "https://jitpack.io" }
     mavenCentral()
 }
 
 dependencies {
+    implementation project(':common')
+
+    // Use Paper API for 1.17.1 for compatibility with v1_17 package
+    compileOnly "io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT"
+    testImplementation "io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT"
+
+    // Add Adventure API for Minecraft 1.17 compatibility
+    compileOnly "net.kyori:adventure-api:4.9.3"
+    testImplementation "net.kyori:adventure-api:4.9.3"
+
+    // PaperLib for compatibility
     implementation 'io.papermc:paperlib:1.0.8'
-    implementation 'org.jetbrains:annotations:24.1.0'
-    implementation 'net.kyori:adventure-api:4.10.1'
-    compileOnly 'io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT'
+
+    // ProtocolLib for tab list features
+    compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
+    testImplementation 'net.dmulloy2:ProtocolLib:5.4.0'
+
+    // Test dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
+    testImplementation 'org.mockito:mockito-core:5.13.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.13.0'
+    testImplementation 'com.github.seeseemelk:MockBukkit-v1.17:1.12.1'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
 }
 
 tasks.processResources {

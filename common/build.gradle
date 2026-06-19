@@ -1,0 +1,30 @@
+// common/build.gradle
+// Compiles at Java 8, depends only on the oldest Spigot API in the project.
+// No Adventure and no Paper-specific APIs
+
+plugins {
+    id 'java'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    // Oldest API targeted by any version module
+    compileOnly 'org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT'
+
+    // Used by VersionChecker
+    implementation 'com.google.code.gson:gson:2.8.9'
+
+    // Used by AbstractNakedAndAfraid
+    implementation 'io.papermc:paperlib:1.0.8'
+
+    compileOnly 'com.github.dmulloy2:ProtocolLib:5.2.0'
+
+    compileOnly 'org.jetbrains:annotations:24.0.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
+    testRuntimeOnly  'org.junit.platform:junit-platform-launcher:1.12.1'
+}

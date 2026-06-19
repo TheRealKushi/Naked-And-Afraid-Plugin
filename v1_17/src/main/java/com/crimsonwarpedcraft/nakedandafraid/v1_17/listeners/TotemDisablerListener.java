@@ -41,7 +41,7 @@ public class TotemDisablerListener implements Listener {
 
     public TotemDisablerListener(NakedAndAfraid nakedAndAfraid) {
         this.nakedAndAfraid = nakedAndAfraid;
-        this.plugin = NakedAndAfraid.getPlugin();
+        this.plugin = nakedAndAfraid.getPlugin();
         nakedAndAfraid.debugLog("[TotemDisablerListener] Initialized for Bukkit version " + Bukkit.getBukkitVersion());
 
         if (!plugin.getConfig().getBoolean("disable-totems", true)) {

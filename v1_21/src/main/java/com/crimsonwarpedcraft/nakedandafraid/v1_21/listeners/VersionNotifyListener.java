@@ -1,4 +1,4 @@
-// V1_17/VersionNotifyListener
+// V1_21/VersionNotifyListener
 
 package com.crimsonwarpedcraft.nakedandafraid.v1_21.listeners;
 

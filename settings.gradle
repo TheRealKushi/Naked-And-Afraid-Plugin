@@ -1,2 +1,3 @@
 rootProject.name = "NakedAndAfraid"
-include("entrypoint", "v1_8", "v1_17", "v1_21")
+include 'entrypoint', 'common', 'v1_8', 'v1_17', 'v1_21'
+include 'common'

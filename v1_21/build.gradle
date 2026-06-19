@@ -27,18 +27,33 @@ repositories {
     maven {
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
-    maven { url = "https://jitpack.io" }
+    maven {
+        url = uri("https://jitpack.io")
+    }
     mavenCentral()
 }
 
 dependencies {
+    implementation project(':common')
+
     implementation 'io.papermc:paperlib:1.0.8'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.1'
     compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
     compileOnly "io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT"
+    testImplementation "io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT"
+    testImplementation 'net.dmulloy2:ProtocolLib:5.4.0'
+    testImplementation 'org.mockito:mockito-core:5.13.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.13.0'
+    testImplementation "org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.0.0"
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
 }
 
 tasks.processResources {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'test.debug', 'true'
 }

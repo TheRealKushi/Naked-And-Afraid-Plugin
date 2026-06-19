@@ -1,4 +1,4 @@
-// V1_17/SpawnData
+// V1_21/SpawnData
 
 package com.crimsonwarpedcraft.nakedandafraid.v1_21.spawn;
 

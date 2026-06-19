@@ -1,6 +1,6 @@
 main: com.crimsonwarpedcraft.nakedandafraid.entrypoint.Main
 name: NakedAndAfraid
-version: "2.0.0"
+version: "2.1.0"
 author: TheRealKushi
 description: >
   A plugin that recreates the functions from the Naked and Afraid YouTube series.

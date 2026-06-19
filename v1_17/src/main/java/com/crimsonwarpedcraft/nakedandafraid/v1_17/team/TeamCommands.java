@@ -24,7 +24,7 @@ public class TeamCommands {
     private final Set<UUID> usedSelectorPlayers = new HashSet<>();
 
     public TeamCommands(TeamsManager teamsManager, NakedAndAfraid plugin) {
-        this.plugin = NakedAndAfraid.getPlugin();
+        this.plugin = plugin.getPlugin();
         this.teamsManager = teamsManager;
         (plugin).debugLog("[TeamCommands] Initialized TeamCommands for Bukkit version " + Bukkit.getBukkitVersion());
     }
@@ -50,68 +50,55 @@ public class TeamCommands {
         sender.sendMessage(legacyColor + message);
     }
 
-    public boolean handleTeamCommand(CommandSender sender, String[] args) {
-        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Processing team command for " + sender.getName() + ": " + String.join(" ", args));
+    /**
+     * Handles /nf teams <create|remove|list> - management operations.
+     */
+    public boolean handleTeamsCommand(CommandSender sender, String[] args) {
+        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Processing teams command for " + sender.getName() + ": " + String.join(" ", args));
         if (args.length < 2) {
-            sendMessage(sender, "Usage: /nf team <create|list|remove|block|setblock> ...", "§c");
-            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for " + sender.getName() + ", expected at least 2");
+            sendMessage(sender, "Usage: /nf teams <create|remove|list>", "§c");
             return true;
         }
-
         var sub = args[1].toLowerCase();
-
-        if (teamsManager.teamExists(sub)) {
-            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Subcommand is a team name: " + sub);
-            if (args.length >= 3) {
-                if (args[2].equalsIgnoreCase("block")) {
-                    return handleTeamBlockSelector(sender, args);
-                }
-                if (args[2].equalsIgnoreCase("setblock")) {
-                    return handleTeamSetBlock(sender, args);
-                }
-            }
-            sendMessage(sender, "Usage: /nf team <team-name> <block|setblock> ...", "§c");
-            ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid subcommand for team '" + sub + "', expected block or setblock");
-            return true;
-        }
-
-        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Subcommand: " + sub);
         return switch (sub) {
             case "create" -> handleTeamCreate(sender, args);
-            case "list" -> handleTeamList(sender);
+            case "list"   -> handleTeamList(sender);
             case "remove" -> handleTeamRemove(sender, args);
-            case "block" -> {
-                if (args.length >= 4 && teamsManager.teamExists(args[2].toLowerCase()) && args[3].equalsIgnoreCase("selector")) {
-                    yield handleTeamBlockSelector(sender, args);
-                }
-                sendMessage(sender, "Usage: /nf team <team-name> block selector <player>", "§c");
-                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for block selector");
+            default -> {
+                sendMessage(sender, "Unknown subcommand. Usage: /nf teams <create|remove|list>", "§c");
                 yield true;
             }
-            case "setblock" -> {
-                if (args.length == 6 && teamsManager.teamExists(args[2].toLowerCase())) {
-                    yield handleTeamSetBlock(sender, args);
-                }
-                sendMessage(sender, "Usage: /nf team <team-name> setblock <x> <y> <z>", "§c");
-                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for setblock");
-                yield true;
-            }
+        };
+    }
+
+    /**
+     * Handles /nf team <team-name> <block|setblock|meta> - per-team operations.
+     */
+    public boolean handleTeamCommand(CommandSender sender, String[] args) {
+        ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Processing team command for " + sender.getName() + ": " + String.join(" ", args));
+        if (args.length < 3) {
+            sendMessage(sender, "Usage: /nf team <team-name> <block|setblock|meta> ...", "§c");
+            return true;
+        }
+
+        var teamName = args[1].toLowerCase();
+        if (!teamsManager.teamExists(teamName)) {
+            sendMessage(sender, "Team '" + teamName + "' does not exist.", "§c");
+            return true;
+        }
+
+        return switch (args[2].toLowerCase()) {
+            case "block" -> handleTeamBlockSelector(sender, args);
+            case "setblock" -> handleTeamSetBlock(sender, args);
             case "meta" -> {
-                if (args.length < 4) {
-                    sendMessage(sender, "Usage: /nf team meta <team-name> color <get|set> [color]", "§c");
-                    ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Invalid arguments for meta, expected at least 4");
+                if (args.length < 4 || !args[3].equalsIgnoreCase("color")) {
+                    sendMessage(sender, "Usage: /nf team <team-name> meta color <get|set> [color]", "§c");
                     yield true;
                 }
-                if (args[3].equalsIgnoreCase("color")) {
-                    yield handleTeamMetaColor(sender, args);
-                }
-                sendMessage(sender, "Unknown meta subcommand.", "§c");
-                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Unknown meta subcommand: " + args[3]);
-                yield true;
+                yield handleTeamMetaColor(sender, args);
             }
             default -> {
-                sendMessage(sender, "Unknown team subcommand.", "§c");
-                ((NakedAndAfraid) plugin).debugLog("[TeamCommands] Unknown subcommand: " + sub);
+                sendMessage(sender, "Unknown subcommand. Usage: /nf team <team-name> <block|setblock|meta>", "§c");
                 yield true;
             }
         };

@@ -1,4 +1,4 @@
-// V1_17/VersionChecker
+// V1_21/VersionChecker
 
 package com.crimsonwarpedcraft.nakedandafraid.v1_21.util;
 

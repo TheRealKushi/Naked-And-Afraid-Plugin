@@ -26,7 +26,7 @@ public class SpawnManager {
 
     public SpawnManager(NakedAndAfraid nakedAndAfraid) {
         this.nakedAndAfraid = nakedAndAfraid;
-        this.plugin = NakedAndAfraid.getPlugin();
+        this.plugin = nakedAndAfraid.getPlugin();
         this.spawnsFile = new File(plugin.getDataFolder(), "spawns.yml");
         nakedAndAfraid.debugLog("[SpawnManager] Initialized SpawnManager for Bukkit version " + Bukkit.getBukkitVersion() +
                 ", spawns file: " + spawnsFile.getPath());
