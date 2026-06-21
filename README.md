@@ -34,7 +34,6 @@ A Minecraft survival plugin for PaperMC/Spigot/Folia/Purpur servers which adds a
 
 ### Admin Tools 🛠
 - Configurable plugin settings via `config.yml`.
-- Tab list hiding requires **ProtocolLib**.
 - Easy-to-use commands for spawn and team management.
 - Teams info stored in `teams.yml` file.
 - Spawns info stored in `spawns.yml` file.
