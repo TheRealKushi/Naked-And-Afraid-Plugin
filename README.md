@@ -28,7 +28,8 @@ A Minecraft survival plugin for PaperMC/Spigot/Folia/Purpur servers which adds a
 - `/nf help` – Displays a paginated help menu.
 - `/nf reloadconfig` – Reload the plugin configuration.
 - `/nf spawn ...` – Manage custom spawns, including their name, coordinates and target player.
-- `/nf team ...` – Manage teams, with creation, deletion, renaming, team-block setting, etc.
+- `/nf team ...` – Manage individual teams, including team-block setting, etc.
+- `/nf teams ...` – Manage teams, with creation, deletion and listing.
 - `/nf user ...` – Manage individual players, setting or removing their teams.
 
 ### Admin Tools 🛠
@@ -56,7 +57,7 @@ Example configuration options in `config.yml`:
 
 ```yaml
 # Configuration for NakedAndAfraid plugin
-# Compatible with Minecraft 1.8–1.21.8.
+# Compatible with Minecraft 1.8–1.21.11.
 # This config file is made for version 2.1.0.
 
 # If you want to use special characters in this document, such as accented letters, you MUST save the file as UTF-8, not ANSI.

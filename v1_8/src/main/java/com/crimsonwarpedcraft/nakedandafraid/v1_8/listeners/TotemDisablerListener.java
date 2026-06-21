@@ -23,7 +23,7 @@ import java.lang.reflect.Method;
  * This listener prevents Totems of Undying from activating when a player would take fatal damage.
  * For Paper-based servers (Paper, Folia, Purpur) 1.17+, it uses reflection to register and cancel
  * PlayerTotemDeathEvent if available. For Spigot or pre-1.17, it uses EntityDamageEvent to detect
- * fatal damage and force death if a totem is present. Compatible with Minecraft 1.12–1.21.8.
+ * fatal damage and force death if a totem is present. Compatible with Minecraft 1.12–1.21.11.
  * <p>
  * Contributors:
  * - Config toggle: Enabled via "disable-totems" in config.yml (default: true).

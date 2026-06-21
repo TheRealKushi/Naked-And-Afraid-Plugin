@@ -20,7 +20,7 @@ import java.util.Set;
 
 /**
  * Utility class for handling countdown-based teleportation with player freezing.
- * Compatible with Minecraft 1.8.8-1.21.8 (Spigot 1.8.8+, Paper 1.16.5+).
+ * Compatible with Minecraft 1.8.8-1.21.11 (Spigot 1.8.8+, Paper 1.16.5+).
  */
 public class TeleportHelper implements Listener {
 
