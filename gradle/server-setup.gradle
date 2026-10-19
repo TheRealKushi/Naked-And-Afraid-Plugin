@@ -2,208 +2,239 @@ import groovy.json.JsonOutput
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 
-// Paper configuration
-def paperVersions = [
+def javaToolchains = project.extensions.getByType(JavaToolchainService)
+
+def getJavaLauncher = { int version ->
+    javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(version)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Server type selection: ./gradlew runServerV1_21 -PserverType=bukkit
+// Options: paper (default), spigot, bukkit
+//
+// Paper jars are downloaded prebuilt. Spigot and Bukkit (CraftBukkit) are NOT
+// available as prebuilt downloads (Mojang's EULA forbids redistributing
+// patched/decompiled server code), so those are built locally with
+// BuildTools.jar the first time they're requested. That first build can take
+// several minutes per Minecraft version and requires Git to be on PATH.
+// ---------------------------------------------------------------------------
+def serverType = (project.hasProperty('serverType') ? project.property('serverType') : 'paper').toString().toLowerCase()
+if (!(serverType in ['paper', 'spigot', 'bukkit'])) {
+    throw new GradleException("Invalid serverType '${serverType}'. Must be 'paper', 'spigot', or 'bukkit'. Pass with -PserverType=<type>")
+}
+println "Server type selected: ${serverType}"
+
+// Per-version config: MC version, Java version needed to build/run it, and Paper download info.
+def serverConfigs = [
         'v1_8' : [
-                version: '1.8.8',
-                build: '445',
-                url: 'https://fill-data.papermc.io/v1/objects/7ff6d2cec671ef0d95b3723b5c92890118fb882d73b7f8fa0a2cd31d97c55f86/paper-1.8.8-445.jar'
+                mcVersion  : '1.8.8',
+                javaVersion: 8,
+                paper      : [
+                        build: '445',
+                        url  : 'https://fill-data.papermc.io/v1/objects/7ff6d2cec671ef0d95b3723b5c92890118fb882d73b7f8fa0a2cd31d97c55f86/paper-1.8.8-445.jar'
+                ]
         ],
         'v1_17': [
-                version: '1.17.1',
-                build: '394',
-                url: 'https://fill-data.papermc.io/v1/objects/6cc1ee2f94253ce10b5374ed85fffc735a97d8f1b64db293683dfa24dd3cc05f/paper-1.17.1-411.jar'
+                mcVersion  : '1.17.1',
+                javaVersion: 17,
+                paper      : [
+                        build: '394',
+                        url  : 'https://fill-data.papermc.io/v1/objects/6cc1ee2f94253ce10b5374ed85fffc735a97d8f1b64db293683dfa24dd3cc05f/paper-1.17.1-411.jar'
+                ]
         ],
         'v1_21': [
-                version: '1.21.8',
-                build: '58',
-                url: 'https://fill-data.papermc.io/v1/objects/d2f29b6d3c945479de8271ea56e8f7935fceec021edaafcbbaf2a8c09f4a5d67/paper-1.21.8-58.jar'
+                mcVersion  : '1.21.8',
+                javaVersion: 21,
+                paper      : [
+                        build: '58',
+                        url  : 'https://fill-data.papermc.io/v1/objects/d2f29b6d3c945479de8271ea56e8f7935fceec021edaafcbbaf2a8c09f4a5d67/paper-1.21.8-58.jar'
+                ]
         ]
 ]
 
-// Directories
-def testServerDirV1_8 = file("$buildDir/test-server-1.8")
-def testServerDirV1_17 = file("$buildDir/test-server-1.17")
-def testServerDirV1_21 = file("$buildDir/test-server-1.21")
-
-// Java executable lookup
-def getJavaExecutable(int javaVersion) {
-    def javaPaths = [
-            '8' : 'C:\\Users\\danie\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-8.0.462.8-hotspot\\bin\\java.exe',
-            '17': 'C:\\Users\\danie\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot\\bin\\java.exe',
-            '21': 'C:\\Users\\danie\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-21.0.7.6-hotspot\\bin\\java.exe'
-    ]
-    def javaPath = javaPaths[javaVersion.toString()]
-    if (javaPath && file(javaPath).exists()) {
-        println "Using Java ${javaVersion} from path: ${javaPath}"
-        return javaPath
-    }
-    throw new GradleException("Java ${javaVersion} executable not found at ${javaPath}.")
+// Returns the test server directory for the selected server type.
+// Examples:
+//  build/test-server-1.8-paper
+//  build/test-server-1.8-spigot
+//  build/test-server-1.8-bukkit
+def getTestServerDir = { String key ->
+    def cfg = serverConfigs[key]
+    file("$buildDir/test-server-${cfg.mcVersion}-${serverType}")
 }
 
-// Download Paper tasks
-tasks.register('downloadPaperServerV1_8') {
-    outputs.file file("$testServerDirV1_8/paper.jar")
+// ---------------------------------------------------------------------------
+// Paper: prebuilt jars, downloaded directly
+// ---------------------------------------------------------------------------
+serverConfigs.each { key, cfg ->
+    def dir = getTestServerDir(key)
+    tasks.register("downloadPaperServer${key.capitalize()}") {
+        outputs.file file("$dir/paper.jar")
+        doLast {
+            dir.mkdirs()
+            def paperJar = file("$dir/paper.jar")
+            if (!paperJar.exists()) {
+                println "Downloading Paper ${cfg.mcVersion}..."
+                new URL(cfg.paper.url).withInputStream { i -> paperJar.withOutputStream { it << i } }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Spigot / CraftBukkit (Bukkit): built locally via BuildTools
+// ---------------------------------------------------------------------------
+def buildToolsJar = file("$buildDir/buildtools/BuildTools.jar")
+
+tasks.register('downloadBuildTools') {
+    outputs.file buildToolsJar
     doLast {
-        testServerDirV1_8.mkdirs()
-        def paperJar = file("$testServerDirV1_8/paper.jar")
-        if (!paperJar.exists()) {
-            println "Downloading Paper 1.8.8..."
-            new URL(paperVersions['v1_8'].url).withInputStream { i -> paperJar.withOutputStream { it << i } }
-        }
-    }
-}
-tasks.register('downloadPaperServerV1_17') {
-    outputs.file file("$testServerDirV1_17/paper.jar")
-    doLast {
-        testServerDirV1_17.mkdirs()
-        def paperJar = file("$testServerDirV1_17/paper.jar")
-        if (!paperJar.exists()) {
-            println "Downloading Paper 1.17.1..."
-            new URL(paperVersions['v1_17'].url).withInputStream { i -> paperJar.withOutputStream { it << i } }
-        }
-    }
-}
-tasks.register('downloadPaperServerV1_21') {
-    outputs.file file("$testServerDirV1_21/paper.jar")
-    doLast {
-        testServerDirV1_21.mkdirs()
-        def paperJar = file("$testServerDirV1_21/paper.jar")
-        if (!paperJar.exists()) {
-            println "Downloading Paper 1.21.8..."
-            new URL(paperVersions['v1_21'].url).withInputStream { i -> paperJar.withOutputStream { it << i } }
+        buildToolsJar.parentFile.mkdirs()
+        if (!buildToolsJar.exists()) {
+            println "Downloading BuildTools..."
+            new URL('https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar')
+                    .withInputStream { i -> buildToolsJar.withOutputStream { it << i } }
         }
     }
 }
 
+serverConfigs.each { key, cfg ->
+    def buildToolsOutputDir = file("$buildDir/buildtools/$key")
+    def craftbukkitJar = file("$buildToolsOutputDir/craftbukkit-${cfg.mcVersion}.jar")
+    def spigotJar = file("$buildToolsOutputDir/spigot-${cfg.mcVersion}.jar")
 
-tasks.register('setupServerV1_8') {
-    dependsOn tasks.named('shadowAllVersions'), tasks.named('downloadPaperServerV1_8')
-    doLast {
-        testServerDirV1_8.mkdirs()
-        file("$testServerDirV1_8/eula.txt").text = 'eula=true'
-        def props = file("$testServerDirV1_8/server.properties")
-        if (!props.exists()) {
-            props.text = 'online-mode=false\n'
+    tasks.register("buildSpigotBukkit${key.capitalize()}", Exec) {
+        dependsOn tasks.named('downloadBuildTools')
+        outputs.files craftbukkitJar, spigotJar
+        onlyIf { !craftbukkitJar.exists() || !spigotJar.exists() }
+
+        doFirst {
+            buildToolsOutputDir.mkdirs()
+
+            executable = getJavaLauncher(cfg.javaVersion)
+                    .get()
+                    .executablePath
+                    .asFile
+                    .absolutePath
+
+            commandLine(
+                    executable,
+                    '-jar',
+                    buildToolsJar.absolutePath,
+                    '--rev',
+                    cfg.mcVersion,
+                    '--output-dir',
+                    buildToolsOutputDir.absolutePath,
+                    '--compile',
+                    'craftbukkit,spigot'
+            )
         }
 
-        copy {
-            from tasks.named('shadowAllVersions').get().archiveFile
-            into "$testServerDirV1_8/plugins"
-        }
-
-        def playerName = "TheRealKushi"
-
-        def offlineUuid = UUID.nameUUIDFromBytes(
-                ("OfflinePlayer:" + playerName)
-                        .getBytes(StandardCharsets.UTF_8)
-        )
-
-        def opsFile = file("$testServerDirV1_8/ops.json")
-
-        opsFile.text = JsonOutput.prettyPrint(
-                JsonOutput.toJson([
-                        [
-                                uuid: offlineUuid.toString(),
-                                name: playerName,
-                                level: 4,
-                                bypassesPlayerLimit: false
-                        ]
-                ])
-        )
+        workingDir buildToolsOutputDir
     }
 }
 
-tasks.register('setupServerV1_17') {
-    dependsOn tasks.named('shadowAllVersions'), tasks.named('downloadPaperServerV1_17')
-    doLast {
-        testServerDirV1_17.mkdirs()
-        file("$testServerDirV1_17/eula.txt").text = 'eula=true'
-        def props = file("$testServerDirV1_17/server.properties")
-        if (!props.exists()) {
-            props.text = 'online-mode=false\n'
-        }
-
-        copy {
-            from tasks.named('shadowAllVersions').get().archiveFile
-            into "$testServerDirV1_17/plugins"
-        }
-
-        def playerName = "TheRealKushi"
-
-        def offlineUuid = UUID.nameUUIDFromBytes(
-                ("OfflinePlayer:" + playerName)
-                        .getBytes(StandardCharsets.UTF_8)
-        )
-
-        def opsFile = file("$testServerDirV1_17/ops.json")
-
-        opsFile.text = JsonOutput.prettyPrint(
-                JsonOutput.toJson([
-                        [
-                                uuid: offlineUuid.toString(),
-                                name: playerName,
-                                level: 4,
-                                bypassesPlayerLimit: false
-                        ]
-                ])
-        )
+// Resolves which task produces the jar for the currently selected serverType,
+// and where that jar ends up on disk.
+def resolveServerJarInfo = { String key ->
+    def cfg = serverConfigs[key]
+    def buildToolsOutputDir = file("$buildDir/buildtools/$key")
+    switch (serverType) {
+        case 'paper':
+            return [
+                    task: tasks.named("downloadPaperServer${key.capitalize()}"),
+                    jar: new File(getTestServerDir(key), "paper.jar")
+            ]
+        case 'spigot':
+            return [
+                    task: tasks.named("buildSpigotBukkit${key.capitalize()}"),
+                    jar: new File(buildToolsOutputDir, "spigot-${cfg.mcVersion}.jar")
+            ]
+        case 'bukkit':
+            return [
+                    task: tasks.named("buildSpigotBukkit${key.capitalize()}"),
+                    jar: new File(buildToolsOutputDir, "craftbukkit-${cfg.mcVersion}.jar")
+            ]
     }
 }
 
-tasks.register('setupServerV1_21') {
-    dependsOn tasks.named('shadowAllVersions'), tasks.named('downloadPaperServerV1_21')
-    doLast {
-        testServerDirV1_21.mkdirs()
-        file("$testServerDirV1_21/eula.txt").text = 'eula=true'
-        def props = file("$testServerDirV1_21/server.properties")
-        if (!props.exists()) {
-            props.text = 'online-mode=false\n'
+// ---------------------------------------------------------------------------
+// Setup and run tasks for each server version, using the selected serverType
+// ---------------------------------------------------------------------------
+serverConfigs.each { key, cfg ->
+    def dir = getTestServerDir(key)
+    def jarInfo = resolveServerJarInfo(key)
+
+    tasks.register("setupServer${key.capitalize()}") {
+        dependsOn tasks.named('shadowAllVersions'), jarInfo.task
+        doLast {
+            dir.mkdirs()
+            file("$dir/eula.txt").text = 'eula=true'
+            def props = file("$dir/server.properties")
+            if (!props.exists()) {
+                props.text = 'online-mode=false\n'
+            }
+
+            copy {
+                from jarInfo.jar
+                into dir
+                rename { 'server.jar' }
+            }
+
+            copy {
+                from tasks.named('shadowAllVersions').get().archiveFile
+                into "$dir/plugins"
+            }
+
+            def playerName = "TheRealKushi"
+
+            def offlineUuid = UUID.nameUUIDFromBytes(
+                    ("OfflinePlayer:" + playerName)
+                            .getBytes(StandardCharsets.UTF_8)
+            )
+
+            def opsFile = file("$dir/ops.json")
+
+            opsFile.text = JsonOutput.prettyPrint(
+                    JsonOutput.toJson([
+                            [
+                                    uuid: offlineUuid.toString(),
+                                    name: playerName,
+                                    level: 4,
+                                    bypassesPlayerLimit: false
+                            ]
+                    ])
+            )
         }
-
-        copy {
-            from tasks.named('shadowAllVersions').get().archiveFile
-            into "$testServerDirV1_21/plugins"
-        }
-
-        def playerName = "TheRealKushi"
-
-        def offlineUuid = UUID.nameUUIDFromBytes(
-                ("OfflinePlayer:" + playerName)
-                        .getBytes(StandardCharsets.UTF_8)
-        )
-
-        def opsFile = file("$testServerDirV1_21/ops.json")
-
-        opsFile.text = JsonOutput.prettyPrint(
-                JsonOutput.toJson([
-                        [
-                                uuid: offlineUuid.toString(),
-                                name: playerName,
-                                level: 4,
-                                bypassesPlayerLimit: false
-                        ]
-                ])
-        )
     }
-}
 
-// Run servers
-tasks.register('runServerV1_8', Exec) {
-    dependsOn tasks.named('setupServerV1_8')
-    workingDir testServerDirV1_8
-    commandLine getJavaExecutable(8), '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
-}
-tasks.register('runServerV1_17', Exec) {
-    dependsOn tasks.named('setupServerV1_17')
-    workingDir testServerDirV1_17
-    commandLine getJavaExecutable(17), '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
-}
-tasks.register('runServerV1_21', Exec) {
-    dependsOn tasks.named('setupServerV1_21')
-    workingDir testServerDirV1_21
-    commandLine getJavaExecutable(21), '-Xmx4G', '-Dpaper.debug=true', '-jar', 'paper.jar'
+    tasks.register("runServer${key.capitalize()}", Exec) {
+        dependsOn tasks.named("setupServer${key.capitalize()}")
+        workingDir dir
+
+        doFirst {
+            def jvmArgs = ['-Xmx4G']
+            if (serverType == 'paper') {
+                jvmArgs << '-Dpaper.debug=true'
+            }
+
+            def executable = getJavaLauncher(cfg.javaVersion)
+                    .get()
+                    .executablePath
+                    .asFile
+                    .absolutePath
+
+            commandLine(
+                    [executable] +
+                            jvmArgs +
+                            ['-jar', 'server.jar']
+            )
+        }
+    }
 }
 
 // Where to store vanilla clients

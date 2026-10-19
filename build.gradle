@@ -79,8 +79,8 @@ tasks.register('shadowAllVersions', ShadowJar) {
     ].flatten() as List<FileCollection>
 
     // Relocate shared libraries to avoid classpath conflicts with other plugins
-    relocate 'io.papermc.lib', 'com.crimsonwarpedcraft.nakedandafraid.lib'
-    relocate 'com.google.gson', 'com.crimsonwarpedcraft.nakedandafraid.gson'
+    relocate 'io.papermc.lib', 'com.therealkushi.nakedandafraid.lib'
+    relocate 'com.google.gson', 'com.therealkushi.nakedandafraid.gson'
 
     // Only the entrypoint's plugin.yml should end up in the JAR
     from(project(':entrypoint').sourceSets.main.resources) { include 'plugin.yml' }
@@ -92,7 +92,7 @@ tasks.register('shadowAllVersions', ShadowJar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     manifest {
-        attributes 'Main-Class': 'com.crimsonwarpedcraft.nakedandafraid.entrypoint.Main'
+        attributes 'Main-Class': 'com.therealkushi.nakedandafraid.entrypoint.Main'
     }
 }
 

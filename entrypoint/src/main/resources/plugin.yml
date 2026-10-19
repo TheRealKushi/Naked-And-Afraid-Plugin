@@ -1,4 +1,4 @@
-main: com.crimsonwarpedcraft.nakedandafraid.entrypoint.Main
+main: com.therealkushi.nakedandafraid.entrypoint.Main
 name: NakedAndAfraid
 version: "2.1.0"
 author: TheRealKushi

@@ -1,3 +1,7 @@
+plugins {
+    id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
+}
+
 rootProject.name = "NakedAndAfraid"
 include 'entrypoint', 'common', 'v1_8', 'v1_17', 'v1_21'
 include 'common'

@@ -1,3 +1,4 @@
+// V1_17/build.gradle
 plugins {
     id 'java'
 }
@@ -20,6 +21,7 @@ repositories {
 
 dependencies {
     implementation project(':common')
+    testImplementation testFixtures(project(':common'))
 
     // Use Paper API for 1.17.1 for compatibility with v1_17 package
     compileOnly "io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT"
